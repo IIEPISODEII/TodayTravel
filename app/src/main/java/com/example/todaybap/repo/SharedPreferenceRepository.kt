@@ -23,14 +23,12 @@ class SharedPreferenceRepository(context: Context) {
 
     private val sharedPreference = context.getSharedPreferences(SHARED_PREFERENCE, Context.MODE_PRIVATE)
 
-    fun setWalkingHour(time: String) {
-        val mTime: Int = time.toInt()
-        sharedPreference.edit().putInt(TIME_WALKING_HOUR, mTime).apply()
+    fun setWalkingHour(time: Int) {
+        sharedPreference.edit().putInt(TIME_WALKING_HOUR, time).apply()
     }
 
-    fun setWalkingMinute(time: String) {
-        val mTime: Int = time.toInt()
-        sharedPreference.edit().putInt(TIME_WALKING_MINUTE, mTime).apply()
+    fun setWalkingMinute(time: Int) {
+        sharedPreference.edit().putInt(TIME_WALKING_MINUTE, time).apply()
     }
 
     // 분 단위로 표현
@@ -38,6 +36,6 @@ class SharedPreferenceRepository(context: Context) {
         return sharedPreference.getInt(TIME_WALKING_MINUTE, 0) + sharedPreference.getInt(
             TIME_WALKING_HOUR,
             0
-        ) * 60 + 10
+        ) * 60
     }
 }

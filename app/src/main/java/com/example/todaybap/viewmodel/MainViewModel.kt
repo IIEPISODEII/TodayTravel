@@ -116,11 +116,23 @@ class MainViewModel : BaseViewModel() {
 
     // 거리 차이(m)를 좌표 차이로 변환
     private fun mapDistanceToCoordinate(distance: Float): Double {
-        return (distance/60000).toDouble()
+        return (distance/100000).toDouble()
     }
 
     fun updateCurrentLocation(lastLocation: Location?) {
         mCurrentLocation.value = lastLocation
+    }
+
+    fun setTravelHour(h: Int) {
+        mSharedPreferenceRepository.setWalkingHour(h)
+    }
+
+    fun setTravelMinute(m: Int) {
+        mSharedPreferenceRepository.setWalkingMinute(m)
+    }
+
+    fun getTravelTime(): Int {
+        return mSharedPreferenceRepository.getWalkingTime()
     }
 
     private fun updateCurrentLocation() = viewEvent(EVENT_UPDATE_CURRENT_LOCATION)

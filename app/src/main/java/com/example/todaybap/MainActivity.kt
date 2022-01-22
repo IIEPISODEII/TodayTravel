@@ -1,6 +1,5 @@
 package com.example.todaybap
 
-import android.app.Dialog
 import android.os.Bundle
 import android.widget.Toast
 import androidx.annotation.UiThread
@@ -8,19 +7,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import com.example.todaybap.databinding.ActivityMainBinding
-import com.example.todaybap.repo.NaverMapRepository
+import com.example.todaybap.view.TimerDialog
 import com.example.todaybap.viewmodel.MainViewModel
-import com.example.todaybap.viewmodel.factory.MainViewModelFactory
-import com.google.android.material.snackbar.Snackbar
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.*
-import com.naver.maps.map.internal.NaverMapAccessor
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.util.FusedLocationSource
-import kotlinx.coroutines.runBlocking
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
-    private lateinit var vm: MainViewModel
+    lateinit var vm: MainViewModel
     private lateinit var cameraUpdate: CameraUpdate
     private lateinit var naverMap: NaverMap
     private lateinit var locationSource: FusedLocationSource
@@ -29,11 +24,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val newLocationMarker = Marker()
 
     // 여행시간 설정 다이얼로그
-    private lateinit var mTimerDialog: Dialog
+    private val mTimerDialog by lazy { TimerDialog(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         vm = ViewModelProvider(this)[MainViewModel::class.java]
 
         mBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
@@ -66,13 +60,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 it.getContentIfNotHandled()?.let { event ->
                     when (event) {
                         MainViewModel.EVENT_UPDATE_CURRENT_LOCATION -> {
-                            runBlocking {
-                                println("위치 소스: ${naverMap.locationSource}")
-                            }
+                            naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
+                            locationSource = FusedLocationSource(this@MainActivity, LOCATION_PERMISSION_REQUEST_CODE)
+                            updateCurrentLocation(locationSource.lastLocation)
                         }
                     }
                 }
             })
+        }
+        
+        // 타이머 설정 다이얼로그 생성
+        mBinding.mainActivityTimerSetting.setOnClickListener {
+            mTimerDialog.setOwnerActivity(this)
+            mTimerDialog.show()
         }
     }
 
@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if (locationSource.onRequestPermissionsResult(requestCode, permissions, grantResults)) {
             if (!locationSource.isActivated) {
-                naverMap.locationTrackingMode = LocationTrackingMode.None
+                naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
             }
         }
     }
