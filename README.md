@@ -5,6 +5,8 @@
   - 돋보기 버튼 클릭 시 현재 위치 중심으로 설정 반경 거리의 무작위 지점을 찍어주는 기능 구현(Random Travel)
 
 ![랜덤 장소 지정_Trim (1)](https://user-images.githubusercontent.com/60639734/152578381-c5aba12d-059d-486e-a2d9-a7a5735fed51.gif)
+
+
 ![좌표 및 주소 확인_Trim](https://user-images.githubusercontent.com/60639734/152578694-0436e220-5673-4173-a34b-e351ba5ffbbf.gif)
 
 
