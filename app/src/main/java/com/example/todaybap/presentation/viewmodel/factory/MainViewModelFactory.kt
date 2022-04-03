@@ -1,9 +1,8 @@
-package com.example.todaybap.viewmodel.factory
+package com.example.todaybap.presentation.viewmodel.factory
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.todaybap.repo.NaverMapRepository
-import com.example.todaybap.repo.SharedPreferenceRepository
+import com.example.todaybap.domain.repo.NaverMapRepository
 
 class MainViewModelFactory(
     private val naverMapRepository: NaverMapRepository

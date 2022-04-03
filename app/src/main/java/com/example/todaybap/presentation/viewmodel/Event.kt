@@ -1,4 +1,4 @@
-package com.example.todaybap.viewmodel
+package com.example.todaybap.presentation.viewmodel
 
 open class Event<out T>(private val content: T) {
     private var hasBeenHandled = false

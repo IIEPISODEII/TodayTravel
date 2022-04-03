@@ -1,6 +1,5 @@
-package util
+package com.example.todaybap.util
 
-import com.naver.maps.geometry.LatLng
 import kotlin.math.roundToInt
 
 object Extension {

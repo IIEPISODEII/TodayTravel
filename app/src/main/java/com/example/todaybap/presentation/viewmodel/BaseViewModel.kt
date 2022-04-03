@@ -1,4 +1,4 @@
-package com.example.todaybap.viewmodel
+package com.example.todaybap.presentation.viewmodel
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

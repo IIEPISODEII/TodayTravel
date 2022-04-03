@@ -7,13 +7,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import com.example.todaybap.databinding.ActivityMainBinding
-import com.example.todaybap.view.TimerDialog
-import com.example.todaybap.viewmodel.MainViewModel
+import com.example.todaybap.presentation.view.TimerDialog
+import com.example.todaybap.presentation.viewmodel.MainViewModel
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.*
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.util.FusedLocationSource
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     lateinit var vm: MainViewModel
     private lateinit var cameraUpdate: CameraUpdate
@@ -44,9 +46,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
         vm.run {
             currentCoordInfo.observe(this@MainActivity, {})
-            getCoordInfo(INIT_MAP_POSITION)
+            updateCoordInfo(INIT_MAP_POSITION)
             mCurrentLocation.observe(this@MainActivity, {})
-            newLatLng.observe(this@MainActivity, {
+            newLatLng.observe(this@MainActivity) {
                 newLocationMarker.map = null
                 newLocationMarker.position = it
                 newLocationMarker.map = naverMap
@@ -55,18 +57,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         .reason(CameraUpdate.REASON_LOCATION)
                         .animate(CameraAnimation.Easing, 2000)
                 )
-            })
-            viewEvent.observe(this@MainActivity, {
+            }
+            viewEvent.observe(this@MainActivity) {
                 it.getContentIfNotHandled()?.let { event ->
                     when (event) {
                         MainViewModel.EVENT_UPDATE_CURRENT_LOCATION -> {
                             naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
-                            locationSource = FusedLocationSource(this@MainActivity, LOCATION_PERMISSION_REQUEST_CODE)
+                            locationSource = FusedLocationSource(
+                                this@MainActivity,
+                                LOCATION_PERMISSION_REQUEST_CODE
+                            )
                             updateCurrentLocation(locationSource.lastLocation)
                         }
                     }
                 }
-            })
+            }
         }
         
         // 타이머 설정 다이얼로그 생성
@@ -114,7 +119,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             newLocationMarker.position = latLng
             newLocationMarker.map = naverMap
             vm.setMyLatLng(new = latLng)
-            vm.getCoordInfo(latLng)
+            vm.updateCoordInfo(latLng)
             naverMap.moveCamera(
                 CameraUpdate.scrollTo(latLng)
                     .reason(CameraUpdate.REASON_LOCATION)

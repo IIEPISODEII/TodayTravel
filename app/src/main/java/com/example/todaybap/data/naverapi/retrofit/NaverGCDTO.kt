@@ -1,4 +1,4 @@
-package com.example.todaybap.retrofit.model
+package com.example.todaybap.data.naverapi
 
 data class NaverGCDTO(
     val status: Status?,

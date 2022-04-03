@@ -1,4 +1,4 @@
-package com.example.todaybap.view
+package com.example.todaybap.presentation.view
 
 import android.app.Dialog
 import android.content.Context
@@ -8,7 +8,8 @@ import android.widget.NumberPicker
 import androidx.lifecycle.ViewModelProvider
 import com.example.todaybap.MainActivity
 import com.example.todaybap.R
-import com.example.todaybap.viewmodel.MainViewModel
+import com.example.todaybap.presentation.viewmodel.MainViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
 class TimerDialog(context: Context) : Dialog(context) {
     private val mDialogView by lazy { layoutInflater.inflate(R.layout.dialog_custom_timer, null) }
@@ -19,8 +20,6 @@ class TimerDialog(context: Context) : Dialog(context) {
     private lateinit var mButtonExit: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        println("다이얼로그 생성")
         setContentView(mDialogView)
         viewModel = ViewModelProvider(this.ownerActivity as MainActivity)[MainViewModel::class.java]
         mTvHour = mDialogView.findViewById(R.id.custom_timer_button_hour)
@@ -29,12 +28,10 @@ class TimerDialog(context: Context) : Dialog(context) {
         mButtonExit = mDialogView.findViewById(R.id.custom_timer_button_exit)
 
         mTvHour.run {
-            if (viewModel != null) value = viewModel.getTravelTime() / 60
             minValue = 0
             maxValue = 24
         }
         mTvMinute.run {
-            value = viewModel.getTravelTime() - viewModel.getTravelTime() / 60
             minValue = 0
             maxValue = 59
         }
@@ -50,5 +47,10 @@ class TimerDialog(context: Context) : Dialog(context) {
         }
     }
 
-
+    override fun onStart() {
+        super.onStart()
+        val initialTravelTime = viewModel.getTravelTime()
+        mTvHour.value = initialTravelTime/60
+        mTvMinute.value = initialTravelTime - initialTravelTime / 60
+    }
 }

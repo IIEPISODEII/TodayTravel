@@ -1,23 +1,18 @@
-package com.example.todaybap.repo
+package com.example.todaybap.domain.repo
 
 import android.content.Context
 import java.lang.IllegalStateException
 
 class SharedPreferenceRepository(context: Context) {
-    private val SHARED_PREFERENCE = "mSharedPreference"
     private val TIME_WALKING_HOUR = "walking-hour"
     private val TIME_WALKING_MINUTE = "walking-minute"
 
     companion object {
-        private var sInstance: SharedPreferenceRepository? = null
+        const val SHARED_PREFERENCE = "mSharedPreference"
 
-        // Repository 인스턴스를 싱글턴으로 생성
-        fun initialize(mContext: Context) {
-            if (sInstance == null) sInstance = SharedPreferenceRepository(mContext)
-        }
         // Repository 인스턴스 반환
-        fun getInstance(): SharedPreferenceRepository {
-            return sInstance ?: throw IllegalStateException("SharedPreferenceRepository is not initialized")
+        fun getInstance(context: Context): SharedPreferenceRepository {
+            return SharedPreferenceRepository(context)
         }
     }
 
