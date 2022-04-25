@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TodayBap</string>
+    <string name="app_name">TodayTravel</string>
     <string name="coordinate_information_lati">위도: %s</string>
     <string name="coordinate_information_longi">경도: %s</string>
 </resources>

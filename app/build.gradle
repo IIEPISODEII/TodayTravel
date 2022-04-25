@@ -13,7 +13,7 @@ android {
     compileSdk 31
 
     defaultConfig {
-        applicationId "com.example.todaybap"
+        applicationId "com.example.todaytravel"
         minSdk 21
         targetSdk 31
         versionCode 1
@@ -22,8 +22,11 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // 프로젝트에서 사용, 타입-키-값
-        buildConfigField("String", "CLIENT_ID", properties['navermap_id'])
-        buildConfigField("String", "CLIENT_KEY", properties['navermap_secret'])
+        buildConfigField("String", "NAVER_MAP_CLIENT_ID", properties['navermap_id'])
+        buildConfigField("String", "NAVER_MAP_CLIENT_KEY", properties['navermap_secret'])
+        buildConfigField("String", "NAVER_LOGIN_CLIENT_ID", properties['naverlogin_id'])
+        buildConfigField("String", "NAVER_LOGIN_CLIENT_KEY", properties['naverlogin_secret'])
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", properties['kakao_native_app_key'])
     }
 
     dataBinding {
@@ -77,6 +80,22 @@ dependencies {
     // 힐트
     implementation 'com.google.dagger:hilt-android:2.38.1'
     kapt 'com.google.dagger:hilt-android-compiler:2.38.1'
+    
+    // 스플래시 스크린
+    implementation 'androidx.core:core-splashscreen:1.0.0-beta02'
+
+    // 네이버 로그인
+    implementation 'com.naver.nid:naveridlogin-android-sdk:4.2.6'
+    def android_x_version = "1.0.0"
+    implementation "androidx.appcompat:appcompat:$android_x_version"
+    implementation "androidx.legacy:legacy-support-core-utils:$android_x_version"
+    implementation "androidx.browser:browser:$android_x_version"
+    implementation "androidx.legacy:legacy-support-v4:$android_x_version"
+
+    // 카카오톡 공유
+    implementation "com.kakao.sdk:v2-user:2.9.0"
+    implementation "com.kakao.sdk:v2-talk:2.9.0"
+    implementation "com.kakao.sdk:v2-link:2.9.0"
 }
 
 kapt {

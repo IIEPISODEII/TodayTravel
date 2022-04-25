@@ -1,22 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.todaybap">
+    package="com.example.todaytravel">
+
+    <queries>
+        <package android:name="com.kakao.talk" />
+    </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
+        android:name="com.example.todaytravel.MainApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:name=".MainApplication"
         android:theme="@style/Theme.AppCompat.NoActionBar">
+
         <activity
-            android:name="com.example.todaybap.MainActivity"
+            android:name="com.example.todaytravel.MainActivity"
             android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:host="kakaolink"
+                    android:scheme="kakao38287f408617da7f9b9d67ab3a415520" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.example.todaytravel.SplashActivity"
+            android:exported="true"
+            android:theme="@style/SplashTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -24,9 +44,17 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="com.nhn.android.naverlogin.ui.OAuthCustomTabActivity"
+            android:exported="true"/>
+
         <meta-data
             android:name="com.naver.maps.map.CLIENT_ID"
             android:value="8tmjohldvx" />
+
+        <meta-data
+            android:name="com.kakao.sdk.Appkey"
+            android:value="38287f408617da7f9b9d67ab3a415520" />
     </application>
 
 </manifest>

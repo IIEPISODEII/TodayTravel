@@ -7,7 +7,7 @@
 
         <variable
             name="viewModel"
-            type="com.example.todaybap.presentation.viewmodel.MainViewModel" />
+            type="com.example.todaytravel.presentation.viewmodel.MainViewModel" />
     </data>
 
     <com.sothree.slidinguppanel.SlidingUpPanelLayout
@@ -41,7 +41,6 @@
                 android:layout_marginTop="25dp"
                 android:layout_marginEnd="25dp"
                 android:background="@color/transparent"
-                android:onClick="@{() -> viewModel.findLocationFromCurrentLocation()}"
                 android:src="@drawable/ic_baseline_search_24_selector" />
 
             <ImageButton
@@ -52,7 +51,17 @@
                 android:layout_marginTop="75dp"
                 android:layout_marginEnd="25dp"
                 android:background="@color/transparent"
-                android:src="@drawable/ic_baseline_access_time_24_selector" />
+                android:src="@drawable/ic_baseline_access_time_24_normal" />
+
+            <ImageButton
+                android:id="@+id/main_activity_share_button"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_alignParentEnd="true"
+                android:layout_marginEnd="25dp"
+                android:layout_marginTop="125dp"
+                android:background="@color/transparent"
+                android:src="@drawable/ic_share" />
         </RelativeLayout>
 
         <LinearLayout
