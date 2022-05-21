@@ -1,7 +1,13 @@
 package com.example.todaytravel.presentation.viewmodel
 
+import android.content.Context
 import android.location.Location
-import androidx.lifecycle.*
+import android.widget.Toast
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
 import com.example.todaytravel.domain.usecase.GetAddressFromNaverUsecase
 import com.example.todaytravel.domain.usecase.GetWalkingTimeUsecase
 import com.example.todaytravel.domain.usecase.SetWalkingHourUsecase
@@ -9,8 +15,10 @@ import com.example.todaytravel.domain.usecase.SetWalkingMinuteUsecase
 import com.example.todaytravel.util.Extension.toDMS
 import com.naver.maps.geometry.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.*
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 @HiltViewModel
@@ -18,19 +26,24 @@ class MainViewModel @Inject constructor(
     private val getAddressFromNaverUsecase: GetAddressFromNaverUsecase,
     private val getWalkingTimeUsecase: GetWalkingTimeUsecase,
     private val setWalkingHourUsecase: SetWalkingHourUsecase,
-    private val setWalkingMinuteUsecase : SetWalkingMinuteUsecase
-    ) : BaseViewModel() {
+    private val setWalkingMinuteUsecase: SetWalkingMinuteUsecase
+) : BaseViewModel() {
 
     companion object {
         const val EVENT_UPDATE_CURRENT_LOCATION = 1000
     }
 
+    private val _isRunning = MutableLiveData<Boolean>(false)
+    val isRunning: LiveData<Boolean> = _isRunning
+    fun setRunning(b: Boolean) {
+        _isRunning.value = b
+    }
+
     private val M_PER_MINUTE: Float = 66.67F
 
     private var _mLatLng: MutableLiveData<LatLng> = MutableLiveData()
-    val mLatLng: LiveData<LatLng> = _mLatLng
-    private var _newLatLng: MutableLiveData<LatLng> = MutableLiveData()
-    val newLatLng: LiveData<LatLng> = _newLatLng
+    private var _newRandomLatLng: MutableLiveData<LatLng> = MutableLiveData()
+    val newRandomLatLng: LiveData<LatLng> = _newRandomLatLng
 
     fun setMyLatLng(new: LatLng) {
         _mLatLng.value = new
@@ -39,9 +52,10 @@ class MainViewModel @Inject constructor(
     private var _mCurrentLocation: MutableLiveData<Location> = MutableLiveData()
     val mCurrentLocation = _mCurrentLocation
 
-    private var _currentCoordInfo: MutableLiveData<CoordInfoData> = MutableLiveData()
-    val currentCoordInfo: LiveData<CoordInfoData>
-        get() = _currentCoordInfo
+    private var _markedCoordInfo: MutableLiveData<CoordInfoData> = MutableLiveData()
+    val markedCoordInfo: LiveData<CoordInfoData>
+        get() = _markedCoordInfo
+
 
     // 주소 정보 불러오기
     fun updateCoordInfo(query: LatLng) {
@@ -85,7 +99,7 @@ class MainViewModel @Inject constructor(
                     }
                 }
             }
-            _currentCoordInfo.value = CoordInfoData(
+            _markedCoordInfo.value = CoordInfoData(
                 query.latitude.toDMS(),
                 query.longitude.toDMS(),
                 numberAddress.toString(),
@@ -98,7 +112,6 @@ class MainViewModel @Inject constructor(
     fun findRandomLocationAroundCurrentLocation() {
         val mLatitude = mCurrentLocation.value?.latitude
         val mLongitude = mCurrentLocation.value?.longitude
-
         if (mLatitude == null || mLongitude == null) {
             updateCurrentLocation()
         }
@@ -119,7 +132,7 @@ class MainViewModel @Inject constructor(
             if (mLatitude != null) newLatitude = mLatitude + coorY
             if (mLongitude != null) newLongitude = mLongitude + coorX
         }
-        _newLatLng.value = LatLng(newLatitude, newLongitude)
+        _newRandomLatLng.value = LatLng(newLatitude, newLongitude)
     }
 
     // 주어진 시간을 성인 평균 보폭 거리(m)로 변환
@@ -149,6 +162,33 @@ class MainViewModel @Inject constructor(
     }
 
     private fun updateCurrentLocation() = viewEvent(EVENT_UPDATE_CURRENT_LOCATION)
+
+    fun setTimer(ctx: Context, workRequest: OneTimeWorkRequest) {
+        WorkManager.getInstance(ctx).apply {
+            cancelAllWork()
+            enqueue(workRequest)
+            setRunning(true)
+        }
+    }
+
+    fun checkDestination(ctx: Context) {
+        var arrival = false
+        updateCurrentLocation()
+
+        if (mCurrentLocation.value != null) arrival =
+            (mCurrentLocation.value!!.latitude - _newRandomLatLng.value!!.longitude).pow(2.0) + (mCurrentLocation.value!!.longitude - _newRandomLatLng.value!!.latitude) < 0.1.pow(6)
+
+        if (arrival) {
+            cancelTimer(ctx)
+            Toast.makeText(ctx, "도착!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(ctx, "아직 도착하지 않았습니다.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun cancelTimer(ctx: Context) {
+        WorkManager.getInstance(ctx).cancelAllWork()
+    }
 
     override fun onCleared() {
         super.onCleared()

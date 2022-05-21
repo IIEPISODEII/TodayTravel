@@ -10,4 +10,6 @@
     <color name="clearblue">#FF007FFF</color>
     <color name="transparent">#00FFFFFF</color>
     <color name="skyblue">#00FFFF</color>
+    <color name="yellow">#FFFF00</color>
+
 </resources>

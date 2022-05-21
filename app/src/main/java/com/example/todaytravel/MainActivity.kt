@@ -3,17 +3,27 @@ package com.example.todaytravel
 import android.annotation.SuppressLint
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.MotionEvent
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.annotation.UiThread
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.example.todaytravel.databinding.ActivityMainBinding
 import com.example.todaytravel.presentation.view.SocialShareDialog
 import com.example.todaytravel.presentation.view.TimerDialog
 import com.example.todaytravel.presentation.viewmodel.MainViewModel
+import com.example.todaytravel.util.Extension.toTime
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.*
 import com.naver.maps.map.overlay.Marker
@@ -40,24 +50,29 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         vm = ViewModelProvider(this)[MainViewModel::class.java]
 
+        var workRequest = OneTimeWorkRequest.Builder(BackgroundTimer::class.java)
+            .setInputData(Data.Builder().putAll(mapOf("TIMER" to vm.getTravelTime())).build())
+            .build()
+
         mBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         with(mBinding) {
             viewModel = this@MainActivity.vm
             lifecycleOwner = this@MainActivity
         }
-        
+
         // 네이버맵 호출
         val fm = supportFragmentManager
         val mapFragment = fm.findFragmentById(R.id.map) as MapFragment?
             ?: MapFragment.newInstance().also {
                 fm.beginTransaction().add(R.id.map, it).commit()
             }
+
         mapFragment.getMapAsync(this)
         vm.run {
-            currentCoordInfo.observe(this@MainActivity) {}
+            markedCoordInfo.observe(this@MainActivity) {}
             updateCoordInfo(INIT_MAP_POSITION)
             mCurrentLocation.observe(this@MainActivity) {}
-            newLatLng.observe(this@MainActivity) {
+            newRandomLatLng.observe(this@MainActivity) {
                 newLocationMarker.map = null
                 newLocationMarker.position = it
                 newLocationMarker.map = naverMap
@@ -77,7 +92,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                                 LOCATION_PERMISSION_REQUEST_CODE
                             )
                             updateCurrentLocation(locationSource.lastLocation)
+                            Log.d(
+                                "LocationSourcee: ",
+                                "위도 ${locationSource.lastLocation?.latitude}, 경도 ${locationSource.lastLocation?.longitude}"
+                            )
                         }
+                        else -> {}
                     }
                 }
             }
@@ -114,6 +134,22 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         vm.findRandomLocationAroundCurrentLocation()
                         (v as ImageButton).setImageResource(R.drawable.ic_search_avd_reverse)
                         (v.drawable as AnimatedVectorDrawable).start()
+
+                        workRequest = OneTimeWorkRequest.Builder(BackgroundTimer::class.java)
+                            .setInputData(
+                                Data.Builder().putAll(mapOf("TIMER" to vm.getTravelTime())).build()
+                            )
+                            .build()
+                        vm.setTimer(this@MainActivity, workRequest)
+                        WorkManager.getInstance(this@MainActivity)
+                            .getWorkInfoByIdLiveData(workRequest.id).observe(this@MainActivity) {
+                            when (it.state) {
+                                WorkInfo.State.CANCELLED, WorkInfo.State.SUCCEEDED, WorkInfo.State.FAILED -> {
+                                    vm.setRunning(false)
+                                }
+                                else -> {}
+                            }
+                        }
                     }
                     else -> {
                     }
@@ -140,6 +176,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 true
             }
         }
+        timer.observe(this) {
+            mBinding.mainActivityShowTimer.text = it.toTime()
+        }
+        vm.isRunning.observe(this) {}
     }
 
     @UiThread
@@ -163,7 +203,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // 위치 추적 기능 활성화
         locationSource = FusedLocationSource(this@MainActivity, LOCATION_PERMISSION_REQUEST_CODE)
         locationSource.activate {
-            vm.updateCurrentLocation(locationSource.lastLocation)
+            vm.updateCurrentLocation(it)
         }
         naverMap.locationSource = this.locationSource
 
@@ -186,6 +226,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     .reason(CameraUpdate.REASON_LOCATION)
                     .animate(CameraAnimation.Easing, 2000)
             )
+            Log.i(
+                "현재 위치",
+                "경도: ${vm.mCurrentLocation.value?.longitude}, 위도: ${vm.mCurrentLocation.value?.latitude}"
+            )
         }
         naverMap.addOnLocationChangeListener {
             vm.updateCurrentLocation(it)
@@ -194,6 +238,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1000
+        private var _timer = MutableLiveData<Int>(0)
+        private val timer: LiveData<Int>
+            get() = _timer
+        val handler = Handler(Looper.getMainLooper()) {
+            _timer.value = it.what
+            println("HANDLER: ${it.what}")
+
+            true
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -206,8 +259,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if (locationSource.onRequestPermissionsResult(requestCode, permissions, grantResults)) {
             if (!locationSource.isActivated) {
-                naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
-            }
+                naverMap.locationTrackingMode = LocationTrackingMode.None
+            } else naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
         }
     }
 
