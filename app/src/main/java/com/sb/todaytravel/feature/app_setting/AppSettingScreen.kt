@@ -1,4 +1,4 @@
-package com.sb.todaytravel.ui.setting
+package com.sb.todaytravel.feature.app_setting
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -7,49 +7,40 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
+import androidx.compose.material.Switch
+import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sb.todaytravel.R
+import com.sb.todaytravel.feature.core.AcceptionDialog
+import com.sb.todaytravel.feature.theme.TodayTravelTeal
 
 @Composable
 fun AppSettingScreen(
@@ -57,6 +48,7 @@ fun AppSettingScreen(
 ) {
     val travelRadius by viewModel.travelRadius.collectAsState()
     var isDeletionForHistoryDialogShown by remember { mutableStateOf(false) }
+    var preventionOfMapRotation by remember { mutableStateOf(viewModel.preventionOfMapRotation.value) }
 
     BackHandler() {
 
@@ -69,7 +61,8 @@ fun AppSettingScreen(
         contentAlignment = Alignment.Center
     ) {
         if (isDeletionForHistoryDialogShown) {
-            DeleteHistoryDialog(
+            AcceptionDialog(
+                question = stringResource(id = R.string.delete_history),
                 onDismissRequest = { isDeletionForHistoryDialogShown = false },
                 onAccept = {
                     viewModel.deleteHistory()
@@ -84,22 +77,27 @@ fun AppSettingScreen(
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.Start,
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
             SettingComponentBundle(
                 content = {
-                    DescriptionText(description = "지도 설정")
+                    DescriptionText(description = stringResource(R.string.appsetting_map))
                     Spacer(modifier = Modifier.height(4.dp))
-                    SettingComponentText("지도 시작 지점", "내 위치")
+                    SettingComponentText(stringResource(R.string.appsetting_map_starting_point), "내 위치")
                     Divider(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp),
                         color = Color(0xFFEEEEEE)
                     )
-                    SettingComponentText("새 설정", "")
+                    SettingComponentSwitch(
+                        description = stringResource(R.string.description_for_prevention_of_map_rotation),
+                        isChecked = preventionOfMapRotation,
+                        onCheckedChange = { value ->
+                            viewModel.setPreventionOfMapRotation(value)
+                            preventionOfMapRotation = value
+                        }
+                    )
                 }
             )
-            Spacer(modifier = Modifier.height(4.dp))
             SettingComponentBundle(
                 content = {
                     DescriptionText(description = "여행 설정")
@@ -118,7 +116,6 @@ fun AppSettingScreen(
                     SettingComponentText("새 설정", "")
                 }
             )
-            Spacer(modifier = Modifier.height(4.dp))
             SettingComponentBundle(
                 content = {
                     DescriptionText(description = "앱 설정")
@@ -134,7 +131,25 @@ fun AppSettingScreen(
                             .padding(horizontal = 8.dp),
                         color = Color(0xFFEEEEEE)
                     )
-                    SettingComponentText("새 설정", "")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = "버전",
+                            color = Color.DarkGray,
+                            fontSize = 16.sp
+                        )
+                        Spacer(
+                            modifier = Modifier.height(4.dp)
+                        )
+                        Text(
+                            text = stringResource(id = R.string.version_codes),
+                            color = Color(0xFF888888),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             )
         }
@@ -225,82 +240,38 @@ fun SettingComponentText(
 }
 
 @Composable
-fun DeleteHistoryDialog(
-    onDismissRequest: () -> Unit = {},
-    onAccept: () -> Unit = {}
+fun SettingComponentSwitch(
+    description: String,
+    isChecked: Boolean = false,
+    onCheckedChange: (Boolean) -> Unit = {}
 ) {
-    Dialog(onDismissRequest = { onDismissRequest() }) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(1F)
-                .wrapContentHeight()
-                .background(
-                    color = Color.White,
-                    shape = RoundedCornerShape(20.dp)
-                )
-                .padding(top = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                text = stringResource(R.string.delete_history),
-                fontSize = 18.sp,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider(modifier = Modifier
-                .fillMaxWidth(0.9F)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    modifier = Modifier
-                        .wrapContentHeight()
-                        .weight(1F)
-                        .clip(RoundedCornerShape(bottomStart = 20.dp))
-                        .clickable {
-                            onDismissRequest()
-                        }
-                        .padding(vertical = 16.dp)
-                    ,
-                    text = stringResource(R.string.dismiss),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center
-                )
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .weight(0.01F)
-                )
-                Text(
-                    modifier = Modifier
-                        .wrapContentHeight()
-                        .weight(1F)
-                        .clip(RoundedCornerShape(bottomEnd = 20.dp))
-                        .clickable {
-                            onAccept()
-                        }
-                        .padding(vertical = 16.dp)
-                    ,
-                    text = stringResource(id = R.string.accept),
-                    fontSize = 14.sp,
-                    color = Color(0xFF4D88FF),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun Description() {
-    DeleteHistoryDialog()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .background(color = Color.White),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = description,
+            fontSize = 16.sp,
+            modifier= Modifier
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            color = Color.DarkGray
+        )
+        Switch(
+            modifier = Modifier
+                .wrapContentWidth()
+                .padding(end = 8.dp)
+                .align(Alignment.CenterVertically),
+            checked = isChecked,
+            onCheckedChange = { value -> onCheckedChange(value) },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = TodayTravelTeal
+            )
+        )
+    }
 }

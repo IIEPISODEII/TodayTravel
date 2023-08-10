@@ -1,10 +1,10 @@
-package com.sb.todaytravel.ui
+package com.sb.todaytravel.feature.core
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.core.app.ActivityCompat
@@ -13,12 +13,11 @@ import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.util.FusedLocationSource
-import com.sb.todaytravel.feature.location_manage.LocationTrackerService
-import com.sb.todaytravel.ui.theme.TodayTravelTheme
+import com.sb.todaytravel.feature.theme.TodayTravelTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : androidx.activity.ComponentActivity() {
+class MainActivity : ComponentActivity() {
     lateinit var vm: MainViewModel
     private lateinit var cameraUpdate: CameraUpdate
     private lateinit var naverMap: NaverMap
@@ -46,9 +45,6 @@ class MainActivity : androidx.activity.ComponentActivity() {
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), REQUEST_BACKGROUND_LOCATION)
         }
-
-        val serviceIntent = Intent(this, LocationTrackerService::class.java)
-        startService(serviceIntent)
     }
 
     override fun onDestroy() {

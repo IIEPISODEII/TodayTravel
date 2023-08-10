@@ -19,8 +19,11 @@ interface TravelHistoryDao {
     @Query("SELECT * FROM history ORDER BY `index` DESC")
     fun selectLatestTravelHistory(): TravelHistory
 
-    @Delete
-    fun deleteTravelHistory(travelHistory: TravelHistory)
+    @Query("SELECT * FROM history ORDER BY `index` DESC")
+    fun selectLatestTravelHistoryAsFlow(): Flow<TravelHistory?>
+
+    @Query("DELETE FROM history WHERE `index` = :deleteIndex")
+    fun deleteTravelHistory(deleteIndex: Int)
 
     @Query("DELETE FROM history")
     fun deleteAllTravelHistories()

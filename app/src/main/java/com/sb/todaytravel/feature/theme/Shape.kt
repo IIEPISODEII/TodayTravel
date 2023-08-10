@@ -1,4 +1,4 @@
-package com.sb.todaytravel.ui.theme
+package com.sb.todaytravel.feature.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes

@@ -1,4 +1,4 @@
-package com.sb.todaytravel.ui
+package com.sb.todaytravel.feature.core
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween

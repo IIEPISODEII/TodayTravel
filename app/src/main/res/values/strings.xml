@@ -2,10 +2,16 @@
     <string name="app_name">TodayTravel</string>
     <string name="coordinate_information_lati">위도: %s</string>
     <string name="coordinate_information_longi">경도: %s</string>
-    <string name="delete_history">모든 방문 기록을 삭제할까요?</string>
+    <string name="delete_history">모든 여정을 삭제할까요?</string>
     <string name="set_here_destination">여기를 도착지점으로 정할까요?</string>
     <string name="accept">네</string>
     <string name="dismiss">아니오</string>
-    <string name="question_travel_cancel">지금 여행을 취소할까요?</string>
-    <string name="no_history">사용 기록이 없습니다.</string>
+    <string name="question_travel_cancel">지금 여정을 취소할까요?</string>
+    <string name="no_history">기록된 여정이 없어요.</string>
+    <string name="title_history">지금까지의 여정 돌아보기</string>
+    <string name="version_codes">현재 Develop / 최신 Develop</string>
+    <string name="question_travel_history_delete">이 여정을 삭제할까요?</string>
+    <string name="appsetting_map">지도 설정</string>
+    <string name="appsetting_map_starting_point">지도 시작 지점</string>
+    <string name="description_for_prevention_of_map_rotation">지도 회전 방지 (정북 방향 고정)</string>
 </resources>

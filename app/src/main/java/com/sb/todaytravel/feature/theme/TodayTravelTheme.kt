@@ -1,11 +1,14 @@
-package com.sb.todaytravel.ui.theme
+package com.sb.todaytravel.feature.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 
 private val TodayTravelDarkColorScheme = darkColorScheme(
     primary = Blue80,
@@ -65,6 +68,29 @@ private val TodayTravelLightColorScheme = lightColorScheme(
     outline = BlueGrey50
 )
 
+private val DefaultTextStyle = TextStyle(
+    fontFamily = pretendard,
+    fontWeight = FontWeight.Light
+)
+
+private val TodayTravelTypography = Typography(
+    displayLarge = DefaultTextStyle,
+    displayMedium = DefaultTextStyle,
+    displaySmall = DefaultTextStyle,
+    headlineLarge = DefaultTextStyle,
+    headlineMedium = DefaultTextStyle,
+    headlineSmall = DefaultTextStyle,
+    titleLarge = DefaultTextStyle,
+    titleMedium = DefaultTextStyle,
+    titleSmall = DefaultTextStyle,
+    bodyLarge = DefaultTextStyle,
+    bodyMedium = DefaultTextStyle,
+    bodySmall = DefaultTextStyle,
+    labelLarge = DefaultTextStyle,
+    labelMedium = DefaultTextStyle,
+    labelSmall = DefaultTextStyle
+)
+
 @Composable
 fun TodayTravelTheme(
     isDarkTheme: Boolean = isSystemInDarkTheme(),
@@ -74,6 +100,7 @@ fun TodayTravelTheme(
 
     MaterialTheme(
         colorScheme = colorsPalette,
-        content = content
+        content = content,
+        typography = TodayTravelTypography
     )
 }

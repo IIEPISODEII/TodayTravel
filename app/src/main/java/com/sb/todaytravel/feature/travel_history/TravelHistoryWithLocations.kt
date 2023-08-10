@@ -1,4 +1,4 @@
-package com.sb.todaytravel.ui.history
+package com.sb.todaytravel.feature.travel_history
 
 import com.sb.todaytravel.data.repositories.entity.TravelLocation
 

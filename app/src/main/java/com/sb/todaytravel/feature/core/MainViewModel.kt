@@ -1,9 +1,9 @@
-package com.sb.todaytravel.ui
+package com.sb.todaytravel.feature.core
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.naver.maps.geometry.LatLng
 import com.sb.todaytravel.data.repositories.AppDatabase
@@ -11,7 +11,7 @@ import com.sb.todaytravel.data.repositories.AppDataStore
 import com.sb.todaytravel.data.repositories.entity.TravelHistory
 import com.sb.todaytravel.data.repositories.entity.TravelLocation
 import com.sb.todaytravel.feature.travel_manage.TravelWorker
-import com.sb.todaytravel.ui.history.TravelHistoryWithLocations
+import com.sb.todaytravel.feature.travel_history.TravelHistoryWithLocations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.math.sqrt
 
@@ -29,13 +28,16 @@ class MainViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val application: Application
 ) : AndroidViewModel(application) {
-    private val M_PER_MINUTE: Float = 66.67F
+
+    private val workManager = WorkManager.getInstance(application.applicationContext)
+    private var currentTravelWorkerId = ""
 
     private val _currentLocation = MutableStateFlow((LatLng(127.3, 21.3)))
     val currentLocation: StateFlow<LatLng>
         get() = _currentLocation.asStateFlow()
 
-    private var destinationLatLng = LatLng(127.3, 21.3)
+    var destinationLatLng = LatLng(127.3, 21.3)
+        private set
 
     private var travelRadius = 0
 
@@ -43,8 +45,16 @@ class MainViewModel @Inject constructor(
     val isTraveling: StateFlow<Boolean>
         get() = _isTraveling.asStateFlow()
 
+    private val _lastTravelHistoryIndex = MutableStateFlow(-1)
+    val lastTravelHistoryIndex: StateFlow<Int>
+        get() = _lastTravelHistoryIndex.asStateFlow()
+
     private var lastLocationLatitude = 0F
     private var lastLocationLongitude = 0F
+
+    private val _preventionOfMapRotation = MutableStateFlow(true)
+    val preventionOfMapRotation: StateFlow<Boolean>
+        get() = _preventionOfMapRotation.asStateFlow()
 
     // 주소 정보 불러오기
     fun updateCoordInfo(query: LatLng) {
@@ -129,15 +139,14 @@ class MainViewModel @Inject constructor(
         val newTravelHistory = TravelHistory(travelStartTime = currentTime)
 
         // Timer Worker 시작
-        val workRequest = PeriodicWorkRequestBuilder<TravelWorker>(repeatInterval = 15, repeatIntervalTimeUnit = TimeUnit.MINUTES).build()
+        val workRequest = OneTimeWorkRequestBuilder<TravelWorker>()
+            .build()
 
-        WorkManager.getInstance(application.applicationContext)
-            .enqueue(workRequest)
-        
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 appDatabase.getTravelHistoryDao().insertTravelHistory(newTravelHistory)
                 appDataStore.setCurrentTravelWorkerId(workRequest.id.toString())
+                workManager.enqueue(workRequest)
             } catch(e: Exception) {
                 e.printStackTrace()
             }
@@ -146,8 +155,8 @@ class MainViewModel @Inject constructor(
 
     fun cancelTravel() {
         try {
-            WorkManager.getInstance(application.applicationContext)
-                .cancelAllWork()
+            workManager.cancelAllWork()
+            workManager.pruneWork()
 
             viewModelScope.launch(Dispatchers.IO) {
                 appDataStore.setCurrentTravelWorkerId("")
@@ -192,6 +201,7 @@ class MainViewModel @Inject constructor(
             launch {
                 appDataStore.getCurrentTravelWorkerId().stateIn(viewModelScope).collect {
                     _isTraveling.value = it != ""
+                    currentTravelWorkerId = it
                 }
             }
             launch {
@@ -202,6 +212,16 @@ class MainViewModel @Inject constructor(
             launch {
                 appDataStore.getCurrentLocationLongitude().stateIn(viewModelScope).collect {
                     lastLocationLongitude = it
+                }
+            }
+            launch(Dispatchers.IO) {
+                appDatabase.getTravelHistoryDao().selectLatestTravelHistoryAsFlow().collect {
+                    _lastTravelHistoryIndex.value = it?.index ?: -1
+                }
+            }
+            launch {
+                appDataStore.getPreventionOfMapRotation().stateIn(viewModelScope).collect {
+                    _preventionOfMapRotation.value = it
                 }
             }
         }

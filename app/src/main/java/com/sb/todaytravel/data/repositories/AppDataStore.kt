@@ -1,6 +1,7 @@
 package com.sb.todaytravel.data.repositories
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -23,6 +24,7 @@ class AppDataStore @Inject constructor(
     private val CURRENT_TRAVEL_WORKER_ID = stringPreferencesKey("current_travel_worker_id")
     private val CURRENT_LATITUDE = floatPreferencesKey("current_latitude")
     private val CURRENT_LONGITUDE = floatPreferencesKey("current_longitude")
+    private val MAP_ROTATION = booleanPreferencesKey("map_rotation")
 
     suspend fun setTravelRadius(radius: Int) {
         dataStore.edit { pref ->
@@ -77,9 +79,20 @@ class AppDataStore @Inject constructor(
     }
 
     fun getCurrentLocationLongitude(): Flow<Float> {
-
         return dataStore.data.map { pref ->
             pref[CURRENT_LONGITUDE] ?: 0F
+        }
+    }
+
+    suspend fun setPreventionOfMapRotation(prevention: Boolean) {
+        dataStore.edit { pref ->
+            pref[MAP_ROTATION] = prevention
+        }
+    }
+
+    fun getPreventionOfMapRotation(): Flow<Boolean> {
+        return dataStore.data.map { pref ->
+            pref[MAP_ROTATION] ?: true
         }
     }
 

@@ -1,8 +1,9 @@
-package com.sb.todaytravel.ui.core
+package com.sb.todaytravel.feature.core
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +27,12 @@ fun BottomNavIconButton(
             },
         contentAlignment = Alignment.Center
     ) {
-        Icon(imageVector = ImageVector.vectorResource(id = iconResource), contentDescription = iconDescription, tint = iconColor)
+        Icon(
+            modifier = Modifier
+                .fillMaxHeight(),
+            imageVector = ImageVector.vectorResource(id = iconResource),
+            contentDescription = iconDescription,
+            tint = iconColor
+        )
     }
 }

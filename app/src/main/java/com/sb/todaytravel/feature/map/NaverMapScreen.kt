@@ -1,4 +1,4 @@
-package com.sb.todaytravel.ui.map
+package com.sb.todaytravel.feature.map
 
 import androidx.compose.runtime.Composable
 
