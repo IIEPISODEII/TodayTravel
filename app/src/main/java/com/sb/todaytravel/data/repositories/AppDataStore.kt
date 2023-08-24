@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.naver.maps.geometry.LatLng
 import com.sb.todaytravel.data.datasources.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,7 @@ class AppDataStore @Inject constructor(
     private val CURRENT_LATITUDE = floatPreferencesKey("current_latitude")
     private val CURRENT_LONGITUDE = floatPreferencesKey("current_longitude")
     private val MAP_ROTATION = booleanPreferencesKey("map_rotation")
+    private val DESTINATION_LATLNG = stringPreferencesKey("destination_latlng")
 
     suspend fun setTravelRadius(radius: Int) {
         dataStore.edit { pref ->
@@ -93,6 +95,21 @@ class AppDataStore @Inject constructor(
     fun getPreventionOfMapRotation(): Flow<Boolean> {
         return dataStore.data.map { pref ->
             pref[MAP_ROTATION] ?: true
+        }
+    }
+
+    suspend fun setDestinationLatLng(destination: LatLng) {
+        dataStore.edit { pref ->
+            pref[DESTINATION_LATLNG] = destination.latitude.toString() + " " + destination.longitude.toString()
+        }
+    }
+
+    fun getDestinationLatLng(): Flow<LatLng> {
+        return dataStore.data.map { pref ->
+            pref[DESTINATION_LATLNG] ?: "37.541 126.79141"
+        }.map {
+            val splitResult = it.split(' ')
+            LatLng(splitResult[0].toDouble(), splitResult[1].toDouble())
         }
     }
 

@@ -1,58 +1,16 @@
 package com.sb.todaytravel.util
 
-import kotlin.math.roundToInt
+import com.naver.maps.geometry.LatLng
 
-    fun String.indentString(): String {
-        val notFancy = toString()
-        return buildString(notFancy.length) {
-            var indent = 0
-            fun StringBuilder.line() {
-                appendLine()
-                repeat(2 * indent) { append(' ') }
-            }
+fun haversine(start: LatLng, destination: LatLng): Double {
+    val dLat = Math.toRadians(destination.latitude - start.latitude);
+    val dLon = Math.toRadians(destination.longitude - start.longitude);
+    val originLat = Math.toRadians(start.latitude);
+    val destinationLat = Math.toRadians(destination.latitude);
 
-            for (char in notFancy) {
-                if (char == ' ') continue
+    val a = Math.pow(Math.sin(dLat / 2), 2.toDouble()) + Math.pow(Math.sin(dLon / 2), 2.toDouble()) * Math.cos(originLat) * Math.cos(destinationLat);
+    val c = 2 * Math.asin(Math.sqrt(a));
+    return EARTH_RADIUS * c;
+}
 
-                when (char) {
-                    ')', ']' -> {
-                        indent--
-                        line()
-                    }
-                }
-
-                if (char == '=') append(' ')
-                append(char)
-                if (char == '=') append(' ')
-
-                when (char) {
-                    '(', '[', ',' -> {
-                        if (char != ',') indent++
-                        line()
-                    }
-                }
-            }
-        }
-    }
-
-    // Decimal 좌표계를 받아와 DMS 좌표계로 변환
-    fun Double.toDMS(): String {
-        val deg = this.toInt()
-        val min = (60 * (this - deg)).toInt()
-        val sec = ((60 * (60 * (this - deg) - min)) * 1000).roundToInt() / 1000f
-        return "$deg° $min′ $sec″"
-    }
-
-    fun Int.toTime(): String {
-        val hour: Int = this/3600
-        val min: Int = (this - 3600*hour)/60
-        val sec: Int = (this - 3600*hour - 60*min)
-
-        return StringBuilder("")
-            .append(hour.toString().padStart(2, '0'))
-            .append(":")
-            .append(min.toString().padStart(2, '0'))
-            .append(":")
-            .append(sec.toString().padStart(2, '0'))
-            .toString()
-    }
+const val EARTH_RADIUS = 6372.8

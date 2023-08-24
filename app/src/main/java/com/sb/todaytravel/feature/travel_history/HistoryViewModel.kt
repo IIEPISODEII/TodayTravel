@@ -39,7 +39,7 @@ class HistoryViewModel @Inject constructor(
         getTravelHistoryJob =
             appDatabase.getTravelHistoryDao().selectAllTravelHistory().stateIn(viewModelScope).onEach { travelHistories ->
                 val list = mutableListOf<TravelHistoryWithLocations>()
-                delay(200L) // 이 딜레이가 없으면 화면에 표시되지 않음
+                delay(1000L) // 이 딜레이가 없으면 화면에 표시되지 않음
 
                 travelHistories
                     .sortedWith(

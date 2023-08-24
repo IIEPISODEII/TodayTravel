@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -56,6 +57,7 @@ import com.sb.todaytravel.R
 import com.sb.todaytravel.feature.core.MainViewModel
 import com.sb.todaytravel.feature.core.AcceptionDialog
 import com.sb.todaytravel.feature.theme.TodayTravelTeal
+import kotlinx.coroutines.flow.StateFlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,26 +66,16 @@ import java.util.Locale
 fun HistoryScreen(
     historyViewModel: HistoryViewModel = hiltViewModel(),
     mainViewModel: MainViewModel = hiltViewModel(),
+    onHistoryItemClick: (TravelHistoryWithLocations) -> Unit = { _ -> },
 ) {
     val travelHistories by historyViewModel.allTravelHistories.collectAsState()
     val orderType by historyViewModel.orderType.collectAsState()
     val lastTravelHistoryIndex by mainViewModel.lastTravelHistoryIndex.collectAsState()
+    val isTraveling by mainViewModel.isTraveling.collectAsState()
 
-    var isSetTravelDestinationDialogShown by remember {
-        mutableStateOf(false)
-    }
+    var dialogEvent by remember { mutableStateOf(DialogEvent.NONE) }
 
-    var isTravelCancelDialogShown by remember {
-        mutableStateOf(false)
-    }
-
-    var isTravelHistoryDeleteDialogShown by remember {
-        mutableStateOf(false)
-    }
-
-    var candidateTravelHistoryIndex by remember {
-        mutableIntStateOf(-1)
-    }
+    var candidateTravelHistoryIndex by remember { mutableIntStateOf(-1) }
 
     val orderTypeDirection by animateFloatAsState(
         targetValue = if (orderType == OrderType.Ascend) 180F else 0F,
@@ -92,7 +84,6 @@ fun HistoryScreen(
             stiffness = Spring.StiffnessMedium
         )
     )
-
     Box(
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -147,7 +138,7 @@ fun HistoryScreen(
                     modifier = Modifier.weight(0.7F),
                     onClick = {
                         mainViewModel.setRandomDestination()
-                        isSetTravelDestinationDialogShown = true
+                        dialogEvent = DialogEvent.SET_TRAVEL
                     }
                 )
             } else {
@@ -159,10 +150,12 @@ fun HistoryScreen(
                     items(travelHistories.size) {
                         TravelHistoryItem(
                             travelHistoryWithLocations = travelHistories[it],
-                            onClick = { mainViewModel.updateMarkedTravelHistory(travelHistories[it]) },
+                            isCurrentTravelingHistory = isTraveling && lastTravelHistoryIndex == travelHistories[it].travelHistoryIndex,
+                            onClick = { onHistoryItemClick(travelHistories[it]) },
                             onLongClick = {
-                                if (mainViewModel.isTraveling.value && lastTravelHistoryIndex == travelHistories[it].travelHistoryIndex) isTravelCancelDialogShown = true
-                                else isTravelHistoryDeleteDialogShown = true
+                                dialogEvent =
+                                    if (mainViewModel.isTraveling.value && lastTravelHistoryIndex == travelHistories[it].travelHistoryIndex) DialogEvent.CANCEL_TRAVEL
+                                    else DialogEvent.DELETE_HISTORY
                                 candidateTravelHistoryIndex = travelHistories[it].travelHistoryIndex
                             }
                         )
@@ -170,41 +163,27 @@ fun HistoryScreen(
                 }
             }
         }
-
-        if (isSetTravelDestinationDialogShown) {
-            AcceptionDialog(
-                question = stringResource(R.string.set_here_destination),
-                onDismissRequest = { isSetTravelDestinationDialogShown = false },
-                onAccept = {
-                    isSetTravelDestinationDialogShown = false
-                    mainViewModel.startTravel()
-                }
-            )
-        }
     }
 
-    if (isTravelCancelDialogShown) {
+    if (dialogEvent != DialogEvent.NONE) {
         AcceptionDialog(
-            question = stringResource(R.string.question_travel_cancel),
+            question = when (dialogEvent) {
+                DialogEvent.DELETE_HISTORY -> stringResource(id = R.string.delete_history)
+                DialogEvent.SET_TRAVEL -> stringResource(id = R.string.set_here_destination)
+                DialogEvent.CANCEL_TRAVEL -> stringResource(id = R.string.question_travel_cancel)
+                else -> ""
+            },
             onDismissRequest = {
-                isTravelCancelDialogShown = false
-                               },
-            onAccept = {
-                isTravelCancelDialogShown = false
-                mainViewModel.cancelTravel()
-            }
-        )
-    }
-
-    if (isTravelHistoryDeleteDialogShown) {
-        AcceptionDialog(
-            question = stringResource(R.string.question_travel_history_delete),
-            onDismissRequest = {
-                isTravelHistoryDeleteDialogShown = false
+                dialogEvent = DialogEvent.NONE
             },
             onAccept = {
-                isTravelHistoryDeleteDialogShown = false
-                historyViewModel.deleteTravelHistory(candidateTravelHistoryIndex)
+                when (dialogEvent) {
+                    DialogEvent.DELETE_HISTORY -> historyViewModel.deleteTravelHistory(candidateTravelHistoryIndex)
+                    DialogEvent.SET_TRAVEL -> mainViewModel.startTravel()
+                    DialogEvent.CANCEL_TRAVEL -> mainViewModel.cancelTravel()
+                    else -> {}
+                }
+                dialogEvent = DialogEvent.NONE
             }
         )
     }
@@ -257,16 +236,10 @@ fun EmptyList(
 @Composable
 fun TravelHistoryItem(
     travelHistoryWithLocations: TravelHistoryWithLocations,
+    isCurrentTravelingHistory: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {}
 ) {
-    val interactionSource by remember { mutableStateOf(MutableInteractionSource()) }
-    val ripple = rememberRipple(
-        bounded = true,
-        radius = 300.dp,
-        color = Color(0xFFEEEEEE)
-    )
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -282,21 +255,33 @@ fun TravelHistoryItem(
                 .clip(RoundedCornerShape(20))
                 .pointerInput(key1 = Unit) {
                     detectTapGestures(
-                        onPress = { onClick.invoke() },
-                        onLongPress = { onLongClick.invoke() }
+                        onPress = { onClick()},
+                        onLongPress = { onLongClick() }
                     )
                 }
-                .indication(interactionSource = interactionSource, indication = ripple)
                 .padding(horizontal = 24.dp, vertical = 12.dp)
                 .align(Alignment.CenterStart),
-            text = if (travelHistoryWithLocations.travelLocations.isNotEmpty()) { travelHistoryWithLocations.travelLocations.first().let {
-                SimpleDateFormat("yy.MM.dd.(E) a hh:mm", Locale("ko", "KR")).format(Date(it.arrivalTime))
-            } + "부터\n" + if (travelHistoryWithLocations.travelLocations.size > 1) { travelHistoryWithLocations.travelLocations.last().let {
-                SimpleDateFormat("yy.MM.dd.(E) a hh:mm", Locale("ko", "KR")).format(Date(it.arrivalTime))
-            } + "까지의 여정" } else "" } else "",
+            text = if (travelHistoryWithLocations.travelLocations.isNotEmpty()) {
+                travelHistoryWithLocations.travelLocations.first().let {
+                    simpleDateFormat.format(Date(it.arrivalTime))
+                } + "부터\n" + if (!isCurrentTravelingHistory) {
+                    travelHistoryWithLocations.travelLocations.last().let {
+                        simpleDateFormat.format(Date(it.arrivalTime))
+                    } + "까지의 여정"
+                } else "시작한 여정"
+            } else "",
             fontSize = 18.sp,
             textAlign = TextAlign.Start,
             lineHeight = TextUnit(28F, TextUnitType.Sp)
         )
     }
 }
+
+enum class DialogEvent {
+    NONE,
+    DELETE_HISTORY,
+    CANCEL_TRAVEL,
+    SET_TRAVEL
+}
+
+val simpleDateFormat = SimpleDateFormat("yy.MM.dd.(E) a hh:mm", Locale("ko", "KR"))

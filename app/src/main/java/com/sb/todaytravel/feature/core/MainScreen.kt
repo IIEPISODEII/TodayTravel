@@ -1,10 +1,11 @@
 package com.sb.todaytravel.feature.core
 
-import android.graphics.PointF
-import android.location.Location
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,8 +16,6 @@ import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,10 +34,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.naver.maps.geometry.LatLng
+import com.naver.maps.map.CameraAnimation
 import com.naver.maps.map.CameraPosition
-import com.naver.maps.map.LocationSource
+import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.compose.CircleOverlay
 import com.naver.maps.map.compose.ExperimentalNaverMapApi
+import com.naver.maps.map.compose.LocationTrackingMode
 import com.naver.maps.map.compose.MapProperties
 import com.naver.maps.map.compose.MapUiSettings
 import com.naver.maps.map.compose.Marker
@@ -46,46 +47,54 @@ import com.naver.maps.map.compose.MarkerState
 import com.naver.maps.map.compose.NaverMap
 import com.naver.maps.map.compose.rememberCameraPositionState
 import com.sb.todaytravel.R
-import com.sb.todaytravel.feature.travel_history.HistoryScreen
-import com.sb.todaytravel.feature.map.MapScreen
 import com.sb.todaytravel.feature.app_setting.AppSettingScreen
+import com.sb.todaytravel.feature.map.MapScreen
+import com.sb.todaytravel.feature.map.rememberFusedLocationSource
+import com.sb.todaytravel.feature.theme.TodayTravelBlue
 import com.sb.todaytravel.feature.theme.TodayTravelTeal
+import com.sb.todaytravel.feature.travel_history.HistoryScreen
+import com.sb.todaytravel.feature.travel_history.HistoryViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalNaverMapApi::class)
 @Composable
 fun MainScreen(
     isNightMode: Boolean = true,
-    viewModel: MainViewModel = hiltViewModel()
+    mainViewModel: MainViewModel = hiltViewModel(),
+    historyViewModel: HistoryViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
-    val seoul = LatLng(126.986, 37.541)
+
+    val seoul = LatLng(INIT_LATITUDE, INIT_LONGITUDE)
+
     val coroutineScope = rememberCoroutineScope()
+
+    var dialogEvent by remember { mutableStateOf(DialogEvent.NONE) }
 
     Box(
         modifier = Modifier
             .fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        val markerState by remember {
+        val destinationCandidateMarkerState by remember {
             mutableStateOf(MarkerState(LatLng(0.toDouble(), 0.toDouble())))
         }
-        val currentLocation = viewModel.currentLocation.collectAsState()
+        val destinationMarkerState by remember {
+            mutableStateOf(MarkerState(LatLng(0.toDouble(), 0.toDouble())))
+        }
+        val currentLocation = mainViewModel.currentLocation.collectAsState()
 
-        val isTraveling = viewModel.isTraveling.collectAsState()
+        val isTraveling by mainViewModel.isTraveling.collectAsState()
 
-        val markedTravelLocations = viewModel.markedLocations.collectAsState()
+        val markedTravelLocations by mainViewModel.markedLocations.collectAsState()
 
-        val preventionOfMapRotation by viewModel.preventionOfMapRotation.collectAsState()
+        val preventionOfMapRotation by mainViewModel.preventionOfMapRotation.collectAsState()
+
+        val destination by mainViewModel.destination.collectAsState()
 
         val cameraPosition = rememberCameraPositionState {
             position = CameraPosition(seoul, 11.0)
         }
-
-        var isDestinationMarkShown by remember {
-            mutableStateOf(false)
-        }
-
-        println(">> preventionOfMapRotation : $preventionOfMapRotation")
 
         var mapUiSettings by remember {
             mutableStateOf(
@@ -96,15 +105,17 @@ fun MainScreen(
             )
         }
 
-        var mapProperties by remember {
+        val mapProperties by remember {
             mutableStateOf(
                 MapProperties(
-                    maxZoom = 15.0,
-                    minZoom = 5.0,
-                    isNightModeEnabled = isNightMode
+                    isNightModeEnabled = isNightMode,
+                    locationTrackingMode = LocationTrackingMode.NoFollow
                 )
             )
         }
+
+        var isDestinationMarkShown by remember { mutableStateOf(false) }
+        var fullScreenMapEnabled by remember { mutableStateOf(false) }
 
         LaunchedEffect(key1 = preventionOfMapRotation) {
             mapUiSettings = mapUiSettings.copy(
@@ -113,98 +124,106 @@ fun MainScreen(
         }
 
         LaunchedEffect(key1 = markedTravelLocations) {
-            if (markedTravelLocations.value.isEmpty()) return@LaunchedEffect
+            if (markedTravelLocations.isEmpty()) return@LaunchedEffect
             cameraPosition.position = CameraPosition(
                 LatLng(
-                    (markedTravelLocations.value.first().latitude + markedTravelLocations.value.last().latitude).toDouble() / 2,
-                    (markedTravelLocations.value.first().longitude + markedTravelLocations.value.last().longitude).toDouble() / 2,
+                    (markedTravelLocations.first().latitude + markedTravelLocations.last().latitude).toDouble() / 2,
+                    (markedTravelLocations.first().longitude + markedTravelLocations.last().longitude).toDouble() / 2,
                 ),
-                11.0
+                15.0
             )
         }
 
-        LaunchedEffect(key1 = viewModel.destinationLatLng) {
-            cameraPosition.position = CameraPosition(
-                LatLng(
-                    viewModel.destinationLatLng.latitude,
-                    viewModel.destinationLatLng.longitude
-                ),
-                11.0
+        LaunchedEffect(key1 = mainViewModel.candidateDestination) {
+            destinationCandidateMarkerState.position = mainViewModel.candidateDestination
+            cameraPosition.animate(
+                update = CameraUpdate.toCameraPosition(CameraPosition(
+                    LatLng(
+                        mainViewModel.candidateDestination.latitude,
+                        mainViewModel.candidateDestination.longitude
+                    ),
+                    15.0
+                )),
+                animation = CameraAnimation.Easing,
+                durationMs = 200
             )
         }
-
-        val locationSource = remember { CustomLocationSource() }
-        var isSetDestinationDialogShown by remember { mutableStateOf(false) }
-        var isCancelTravelingDialogShown by remember { mutableStateOf(false) }
         NaverMap(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .fillMaxHeight(if (fullScreenMapEnabled) 1F else 0.49F)
+                .align(Alignment.TopEnd)
                 .padding(bottom = 60.dp),
             uiSettings = mapUiSettings,
             properties = mapProperties,
+            cameraPositionState = cameraPosition,
             onMapClick = { _, _ -> },
             onMapLongClick = { pointF, coord ->
-                isDestinationMarkShown = !isDestinationMarkShown
-                cameraPosition.position = CameraPosition(LatLng(coord.latitude, coord.longitude), 10.toDouble())
+                isDestinationMarkShown = true
+                destinationCandidateMarkerState.position = coord
+                coroutineScope.launch {
+                    cameraPosition.animate(
+                        update = CameraUpdate.toCameraPosition(CameraPosition(LatLng(coord.latitude, coord.longitude), 15.toDouble())),
+                        animation = CameraAnimation.Easing,
+                        durationMs = 200
+                    )
+                }
                              },
             onLocationChange = { location ->
-                viewModel.updateCurrentLatLng(LatLng(location))
+                mainViewModel.updateCurrentLatLng(LatLng(location))
             },
-            locationSource = locationSource
+            locationSource = rememberFusedLocationSource()
         ) {
-            CircleOverlay(
-                center = currentLocation.value
-            )
             Marker(
-                state = markerState,
-                visible = isDestinationMarkShown,
+                state = destinationCandidateMarkerState,
+                visible = isDestinationMarkShown && !isTraveling,
                 onClick = {
-                    isSetDestinationDialogShown = true
+                    dialogEvent = DialogEvent.SET_DESTINATION
+                    mainViewModel.setDestination(destinationCandidateMarkerState.position)
                     true
                 },
-                iconTintColor = Color(0xFF4CAF50)
+                iconTintColor = TodayTravelTeal
             )
 
-            markedTravelLocations.value.forEach {
+            Marker(
+                state = MarkerState(position = destination),
+                visible = isTraveling,
+                iconTintColor = TodayTravelBlue,
+                subCaptionText = "도착지점"
+            )
+
+            markedTravelLocations.forEach {
                 CircleOverlay(
                     center = LatLng(it.latitude.toDouble(), it.longitude.toDouble()),
                     color = Color(0xFFFFEEEE),
-                    radius = 4.toDouble(),
+                    radius = 12.toDouble(),
                     outlineColor = Color.Blue,
                     outlineWidth = 2.dp
                 )
             }
         }
-        if (isSetDestinationDialogShown) {
-            AcceptionDialog(
-                question = stringResource(R.string.set_here_destination),
-                onDismissRequest = { isSetDestinationDialogShown = false },
-                onAccept = {
-                    viewModel.startTravel()
-                    isSetDestinationDialogShown = false
-                }
-            )
-        }
-        if (isCancelTravelingDialogShown) {
-            AcceptionDialog(
-                question = stringResource(R.string.question_travel_cancel),
-                onDismissRequest = { isCancelTravelingDialogShown = false },
-                onAccept = {
-                    viewModel.cancelTravel()
-                    isCancelTravelingDialogShown = false
-                }
-            )
-        }
 
-        BottomAnimatedDialog(
-            modifier = Modifier
-                .fillMaxWidth(0.7F)
-                .wrapContentHeight()
-                .background(Color.White),
-            isShown = rememberNavController().currentBackStackEntry?.destination?.route == Screen.MapScreen.route && isSetDestinationDialogShown,
-            onDismiss = { isSetDestinationDialogShown = false },
-            onAccept = { viewModel.startTravel() }
-        )
+
+        if (dialogEvent != DialogEvent.NONE) {
+            AcceptionDialog(
+                question = when (dialogEvent) {
+                    DialogEvent.SET_DESTINATION -> stringResource(R.string.set_here_destination)
+                    DialogEvent.CANCEL_TRAVEL -> stringResource(id = R.string.question_travel_cancel)
+                    else -> ""
+                },
+                onDismissRequest = {
+                    dialogEvent = DialogEvent.NONE
+                },
+                onAccept = {
+                    when (dialogEvent) {
+                        DialogEvent.SET_DESTINATION -> mainViewModel.startTravel()
+                        DialogEvent.CANCEL_TRAVEL -> mainViewModel.cancelTravel()
+                        else -> {}
+                    }
+                    dialogEvent = DialogEvent.NONE
+                }
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -218,12 +237,19 @@ fun MainScreen(
                 startDestination = Screen.MapScreen.route
             ) {
                 composable(Screen.MapScreen.route) {
+                    fullScreenMapEnabled = true
                     MapScreen()
                 }
-                composable(Screen.HistoryScreen.route) {
-                    HistoryScreen()
+                composable(
+                    Screen.HistoryScreen.route,
+                    enterTransition = { slideInVertically(initialOffsetY = { it }) },
+                    exitTransition = { slideOutVertically(targetOffsetY = { it }) }
+                ) {
+                    fullScreenMapEnabled = false
+                    HistoryScreen(onHistoryItemClick = { mainViewModel.updateMarkedTravelHistory(it) })
                 }
                 composable(Screen.AppSettingScreen.route) {
+                    fullScreenMapEnabled = true
                     AppSettingScreen()
                 }
             }
@@ -236,11 +262,12 @@ fun MainScreen(
                 .padding(end = 24.dp, bottom = 84.dp),
             backgroundColor = TodayTravelTeal,
             onClick = {
-                if (!isTraveling.value) {
-                    viewModel.setRandomDestination()
-                    isSetDestinationDialogShown = true
+                if (!isTraveling) {
+                    mainViewModel.setRandomDestination()
+                    isDestinationMarkShown = true
+                    dialogEvent = DialogEvent.SET_DESTINATION
                 } else {
-                    isCancelTravelingDialogShown = true
+                    dialogEvent = DialogEvent.CANCEL_TRAVEL
                 }
             }
         ) {
@@ -248,34 +275,16 @@ fun MainScreen(
                 modifier = Modifier
                     .size(48.dp)
                     .padding(12.dp),
-                imageVector = if (isTraveling.value) Icons.Default.Clear else Icons.Default.Add,
+                imageVector = if (isTraveling) Icons.Default.Clear else Icons.Default.Add,
                 contentDescription = ""
             )
         }
     }
 }
 
-
-private class CustomLocationSource : LocationSource {
-    private var listener: LocationSource.OnLocationChangedListener? = null
-
-    override fun activate(listener: LocationSource.OnLocationChangedListener) {
-        this.listener = listener
-    }
-
-    override fun deactivate() {
-        listener = null
-    }
-
-    fun onMapClick(point: PointF, coord: LatLng) {
-        listener?.onLocationChanged(
-            Location("CustomLocationSource").apply {
-                latitude = coord.latitude
-                longitude = coord.longitude
-                accuracy = 100f
-            }
-        )
-    }
+enum class DialogEvent {
+    NONE,
+    CANCEL_TRAVEL,
+    SET_DESTINATION
 }
-
 

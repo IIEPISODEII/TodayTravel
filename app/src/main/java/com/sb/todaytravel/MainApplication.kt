@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.kakao.sdk.common.KakaoSdk
+import com.naver.maps.map.NaverMapSdk
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -17,6 +18,8 @@ class MainApplication : Application(), Configuration.Provider {
             context = this,
             appKey = BuildConfig.KAKAO_NATIVE_APP_KEY
         )
+
+        NaverMapSdk.getInstance(this).client = NaverMapSdk.NaverCloudPlatformClient(BuildConfig.NAVER_MAP_CLIENT_ID)
     }
 
     @Inject lateinit var workerFactory: HiltWorkerFactory

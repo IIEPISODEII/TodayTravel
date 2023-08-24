@@ -3,8 +3,10 @@ package com.sb.todaytravel.feature.core
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.naver.maps.geometry.LatLng
 import com.sb.todaytravel.data.repositories.AppDatabase
 import com.sb.todaytravel.data.repositories.AppDataStore
@@ -32,11 +34,15 @@ class MainViewModel @Inject constructor(
     private val workManager = WorkManager.getInstance(application.applicationContext)
     private var currentTravelWorkerId = ""
 
-    private val _currentLocation = MutableStateFlow((LatLng(127.3, 21.3)))
+    private val _currentLocation = MutableStateFlow((LatLng(INIT_LATITUDE, INIT_LONGITUDE)))
     val currentLocation: StateFlow<LatLng>
         get() = _currentLocation.asStateFlow()
 
-    var destinationLatLng = LatLng(127.3, 21.3)
+    private val _destination = MutableStateFlow((LatLng(0.toDouble(), 0.toDouble())))
+    val destination: StateFlow<LatLng>
+        get() = _destination.asStateFlow()
+
+    var candidateDestination = LatLng(INIT_LATITUDE, INIT_LONGITUDE)
         private set
 
     private var travelRadius = 0
@@ -126,11 +132,11 @@ class MainViewModel @Inject constructor(
         newLatitude = mLatitude + coorY
         newLongitude = mLongitude + coorX
 
-        destinationLatLng = LatLng(newLatitude, newLongitude)
+        candidateDestination = LatLng(newLatitude, newLongitude)
     }
 
     fun setDestination(latLng: LatLng) {
-        destinationLatLng = latLng
+        candidateDestination = latLng
     }
 
     fun startTravel() {
@@ -138,8 +144,11 @@ class MainViewModel @Inject constructor(
         val currentTime = System.currentTimeMillis()
         val newTravelHistory = TravelHistory(travelStartTime = currentTime)
 
+        val inputData = workDataOf(Pair(TravelWorker.TRAVEL_DESTINATION, arrayOf(destination.value.latitude, destination.value.longitude)))
+
         // Timer Worker 시작
         val workRequest = OneTimeWorkRequestBuilder<TravelWorker>()
+            .setInputData(inputData)
             .build()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -147,6 +156,7 @@ class MainViewModel @Inject constructor(
                 appDatabase.getTravelHistoryDao().insertTravelHistory(newTravelHistory)
                 appDataStore.setCurrentTravelWorkerId(workRequest.id.toString())
                 workManager.enqueue(workRequest)
+                appDataStore.setDestinationLatLng(candidateDestination)
             } catch(e: Exception) {
                 e.printStackTrace()
             }
@@ -183,12 +193,12 @@ class MainViewModel @Inject constructor(
         _currentLocation.value = location
     }
 
-    private val _markedLocations = MutableStateFlow(mutableListOf<TravelLocation>())
-    val markedLocations = _markedLocations.asStateFlow()
+    private val _markedLocations = MutableStateFlow(listOf<TravelLocation>())
+    val markedLocations: StateFlow<List<TravelLocation>>
+        get() = _markedLocations.asStateFlow()
 
     fun updateMarkedTravelHistory(travelHistoryWithLocations: TravelHistoryWithLocations) {
-        _markedLocations.value.clear()
-        _markedLocations.value.addAll(travelHistoryWithLocations.travelLocations)
+        _markedLocations.value = travelHistoryWithLocations.travelLocations
     }
 
     init {
@@ -196,6 +206,11 @@ class MainViewModel @Inject constructor(
             launch {
                 appDataStore.getTravelRadius().stateIn(viewModelScope).collect {
                     travelRadius = it
+                }
+            }
+            launch {
+                appDataStore.getDestinationLatLng().stateIn(viewModelScope).collect {
+                    _destination.value = it
                 }
             }
             launch {
