@@ -19,17 +19,17 @@ class AppSettingViewModel @Inject constructor(
     private val appDatabase: AppDatabase
 ): ViewModel() {
 
-    private val _travelRadius = MutableStateFlow(0)
+    private val _travelRadius = MutableStateFlow(100)
     val travelRadius: StateFlow<Int>
         get() = _travelRadius.asStateFlow()
 
-    fun setTravelRadius(radius: Int) {
+    fun setTravelRadius(travelRadius: Int) {
         viewModelScope.launch {
-            appDataStore.setTravelRadius(radius)
+            appDataStore.setTravelRadius(travelRadius)
         }
     }
 
-    private suspend fun getTravelRadius() {
+    private suspend fun getTravelRadiusProgress() {
         appDataStore.getTravelRadius().stateIn(viewModelScope).collect {
             _travelRadius.emit(it)
         }
@@ -55,7 +55,7 @@ class AppSettingViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            getTravelRadius()
+            getTravelRadiusProgress()
         }
         viewModelScope.launch {
             appDataStore.getPreventionOfMapRotation().stateIn(viewModelScope).collect {

@@ -34,12 +34,17 @@ class HistoryViewModel @Inject constructor(
     val orderType: StateFlow<OrderType>
         get() = _orderType.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean>
+        get() = _isLoading.asStateFlow()
+
     private suspend fun getAllTravelHistory(orderType: OrderType) {
         getTravelHistoryJob?.cancel()
         getTravelHistoryJob =
             appDatabase.getTravelHistoryDao().selectAllTravelHistory().stateIn(viewModelScope).onEach { travelHistories ->
+                _isLoading.value = true
                 val list = mutableListOf<TravelHistoryWithLocations>()
-                delay(1000L) // 이 딜레이가 없으면 화면에 표시되지 않음
+                delay(1000) // 이 딜레이가 없으면 화면에 표시되지 않음
 
                 travelHistories
                     .sortedWith(
@@ -47,19 +52,23 @@ class HistoryViewModel @Inject constructor(
                             if (orderType is OrderType.Ascend) it.travelStartTime else -it.travelStartTime
                         }
                     )
-                    .forEach { travelHistory ->
+                    .onEach { travelHistory ->
                         val travelLocation = withContext(Dispatchers.IO) {
                             appDatabase.getTravelLocationDao().selectTravelLocations(travelHistory.index)
                         }
                         list.add(TravelHistoryWithLocations(travelHistory.index, travelHistory.travelStartTime, travelLocation))
                     }
                 _allTravelHistories.value = list
-            }.launchIn(viewModelScope)
+                _isLoading.value = false
+            }
+                .launchIn(viewModelScope)
     }
 
     fun deleteTravelHistory(travelHistoryIndex: Int) {
+        _isLoading.value = true
         viewModelScope.launch(Dispatchers.IO) {
             appDatabase.getTravelHistoryDao().deleteTravelHistory(travelHistoryIndex)
+            _isLoading.value = true
         }
     }
 

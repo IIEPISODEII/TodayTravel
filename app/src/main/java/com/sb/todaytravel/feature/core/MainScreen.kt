@@ -2,7 +2,6 @@ package com.sb.todaytravel.feature.core
 
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material.FloatingActionButton
 import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
@@ -27,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,15 +44,18 @@ import com.naver.maps.map.compose.MapUiSettings
 import com.naver.maps.map.compose.Marker
 import com.naver.maps.map.compose.MarkerState
 import com.naver.maps.map.compose.NaverMap
+import com.naver.maps.map.compose.PathOverlay
 import com.naver.maps.map.compose.rememberCameraPositionState
 import com.sb.todaytravel.R
 import com.sb.todaytravel.feature.app_setting.AppSettingScreen
 import com.sb.todaytravel.feature.map.MapScreen
 import com.sb.todaytravel.feature.map.rememberFusedLocationSource
 import com.sb.todaytravel.feature.theme.TodayTravelBlue
+import com.sb.todaytravel.feature.theme.TodayTravelGreen
 import com.sb.todaytravel.feature.theme.TodayTravelTeal
 import com.sb.todaytravel.feature.travel_history.HistoryScreen
 import com.sb.todaytravel.feature.travel_history.HistoryViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalNaverMapApi::class)
@@ -63,13 +65,24 @@ fun MainScreen(
     mainViewModel: MainViewModel = hiltViewModel(),
     historyViewModel: HistoryViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val navController = rememberNavController()
-
     val seoul = LatLng(INIT_LATITUDE, INIT_LONGITUDE)
-
     val coroutineScope = rememberCoroutineScope()
-
     var dialogEvent by remember { mutableStateOf(DialogEvent.NONE) }
+    val currentLocation by mainViewModel.currentLocation.collectAsState()
+    val isTraveling by mainViewModel.isTraveling.collectAsState()
+    val markedTravelLocations by mainViewModel.markedLocations.collectAsState()
+    val preventionOfMapRotation by mainViewModel.preventionOfMapRotation.collectAsState()
+    val destination by mainViewModel.destination.collectAsState()
+    val cameraPosition = rememberCameraPositionState {
+        position = CameraPosition(seoul, 11.0)
+    }
+
+    LaunchedEffect(key1 = Unit) {
+        delay(1500L)
+        cameraPosition.position = CameraPosition(currentLocation, 11.0)
+    }
 
     Box(
         modifier = Modifier
@@ -79,23 +92,6 @@ fun MainScreen(
         val destinationCandidateMarkerState by remember {
             mutableStateOf(MarkerState(LatLng(0.toDouble(), 0.toDouble())))
         }
-        val destinationMarkerState by remember {
-            mutableStateOf(MarkerState(LatLng(0.toDouble(), 0.toDouble())))
-        }
-        val currentLocation = mainViewModel.currentLocation.collectAsState()
-
-        val isTraveling by mainViewModel.isTraveling.collectAsState()
-
-        val markedTravelLocations by mainViewModel.markedLocations.collectAsState()
-
-        val preventionOfMapRotation by mainViewModel.preventionOfMapRotation.collectAsState()
-
-        val destination by mainViewModel.destination.collectAsState()
-
-        val cameraPosition = rememberCameraPositionState {
-            position = CameraPosition(seoul, 11.0)
-        }
-
         var mapUiSettings by remember {
             mutableStateOf(
                 MapUiSettings(
@@ -104,7 +100,6 @@ fun MainScreen(
                 )
             )
         }
-
         val mapProperties by remember {
             mutableStateOf(
                 MapProperties(
@@ -113,9 +108,9 @@ fun MainScreen(
                 )
             )
         }
-
         var isDestinationMarkShown by remember { mutableStateOf(false) }
         var fullScreenMapEnabled by remember { mutableStateOf(false) }
+        val isLoading by mainViewModel.isLoading.collectAsState()
 
         LaunchedEffect(key1 = preventionOfMapRotation) {
             mapUiSettings = mapUiSettings.copy(
@@ -182,23 +177,33 @@ fun MainScreen(
                     mainViewModel.setDestination(destinationCandidateMarkerState.position)
                     true
                 },
-                iconTintColor = TodayTravelTeal
+                iconTintColor = TodayTravelTeal,
+                captionText = "여기를 도착지점으로",
+                isFlat = true
             )
 
             Marker(
                 state = MarkerState(position = destination),
                 visible = isTraveling,
                 iconTintColor = TodayTravelBlue,
-                subCaptionText = "도착지점"
+                captionText = "도착지점",
+                isFlat = true
             )
 
-            markedTravelLocations.forEach {
+            markedTravelLocations.forEach { (latitude, longitude) ->
                 CircleOverlay(
-                    center = LatLng(it.latitude.toDouble(), it.longitude.toDouble()),
-                    color = Color(0xFFFFEEEE),
+                    center = LatLng(latitude.toDouble(), longitude.toDouble()),
+                    color = Color.Transparent,
                     radius = 12.toDouble(),
-                    outlineColor = Color.Blue,
+                    outlineColor = TodayTravelGreen,
                     outlineWidth = 2.dp
+                )
+            }
+            if (markedTravelLocations.size >= 2) {
+                PathOverlay(
+                    coords = markedTravelLocations.map { LatLng(it.latitude.toDouble(), it.longitude.toDouble()) },
+                    width = 4.dp,
+                    color = TodayTravelGreen
                 )
             }
         }
@@ -216,7 +221,7 @@ fun MainScreen(
                 },
                 onAccept = {
                     when (dialogEvent) {
-                        DialogEvent.SET_DESTINATION -> mainViewModel.startTravel()
+                        DialogEvent.SET_DESTINATION -> if (!isLoading) mainViewModel.startTravel()
                         DialogEvent.CANCEL_TRAVEL -> mainViewModel.cancelTravel()
                         else -> {}
                     }
@@ -281,6 +286,7 @@ fun MainScreen(
         }
     }
 }
+
 
 enum class DialogEvent {
     NONE,

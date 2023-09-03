@@ -3,19 +3,18 @@ package com.sb.todaytravel.feature.travel_history
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,11 +26,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,10 +53,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sb.todaytravel.R
-import com.sb.todaytravel.feature.core.MainViewModel
 import com.sb.todaytravel.feature.core.AcceptionDialog
+import com.sb.todaytravel.feature.core.MainViewModel
+import com.sb.todaytravel.feature.theme.TodayTravelGreen
 import com.sb.todaytravel.feature.theme.TodayTravelTeal
-import kotlinx.coroutines.flow.StateFlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,18 +71,18 @@ fun HistoryScreen(
     val orderType by historyViewModel.orderType.collectAsState()
     val lastTravelHistoryIndex by mainViewModel.lastTravelHistoryIndex.collectAsState()
     val isTraveling by mainViewModel.isTraveling.collectAsState()
-
     var dialogEvent by remember { mutableStateOf(DialogEvent.NONE) }
-
     var candidateTravelHistoryIndex by remember { mutableIntStateOf(-1) }
-
     val orderTypeDirection by animateFloatAsState(
         targetValue = if (orderType == OrderType.Ascend) 180F else 0F,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness = Spring.StiffnessMedium
-        )
+        ),
+        label = ""
     )
+    val isDBLoading by historyViewModel.isLoading.collectAsState()
+
     Box(
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -165,10 +164,24 @@ fun HistoryScreen(
         }
     }
 
+    if (isDBLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(color = Color.Black.copy(alpha = 0.3F))
+                .pointerInput(Unit) {},
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                color = TodayTravelGreen
+            )
+        }
+    }
+
     if (dialogEvent != DialogEvent.NONE) {
         AcceptionDialog(
             question = when (dialogEvent) {
-                DialogEvent.DELETE_HISTORY -> stringResource(id = R.string.delete_history)
+                DialogEvent.DELETE_HISTORY -> stringResource(id = R.string.question_travel_history_delete)
                 DialogEvent.SET_TRAVEL -> stringResource(id = R.string.set_here_destination)
                 DialogEvent.CANCEL_TRAVEL -> stringResource(id = R.string.question_travel_cancel)
                 else -> ""
@@ -233,6 +246,7 @@ fun EmptyList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TravelHistoryItem(
     travelHistoryWithLocations: TravelHistoryWithLocations,
@@ -240,6 +254,13 @@ fun TravelHistoryItem(
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {}
 ) {
+    val interactionSource by remember { mutableStateOf(MutableInteractionSource()) }
+    val ripple = rememberRipple(
+        bounded = true,
+        radius = 300.dp,
+        color = Color(0xFFEEEEEE)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -252,13 +273,12 @@ fun TravelHistoryItem(
                 .wrapContentHeight(align = Alignment.CenterVertically)
                 .padding(horizontal = 24.dp, vertical = 8.dp)
                 .background(Color(0xFFEEEEEE), RoundedCornerShape(20))
-                .clip(RoundedCornerShape(20))
-                .pointerInput(key1 = Unit) {
-                    detectTapGestures(
-                        onPress = { onClick()},
-                        onLongPress = { onLongClick() }
-                    )
-                }
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = ripple,
+                    onLongClick = { onLongClick() },
+                    onClick = { onClick() }
+                )
                 .padding(horizontal = 24.dp, vertical = 12.dp)
                 .align(Alignment.CenterStart),
             text = if (travelHistoryWithLocations.travelLocations.isNotEmpty()) {

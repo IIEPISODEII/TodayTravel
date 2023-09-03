@@ -45,3 +45,4 @@ val BlueGrey90 = Color(0xFFE2E1EC)
 
 val TodayTravelTeal = Color(0xFF91FF96)
 val TodayTravelBlue = Color(0xFF00AFFF)
+val TodayTravelGreen = Color(0xFF0FFF0F)

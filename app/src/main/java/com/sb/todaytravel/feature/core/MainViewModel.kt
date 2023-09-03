@@ -1,21 +1,36 @@
 package com.sb.todaytravel.feature.core
 
+import android.Manifest
 import android.app.Application
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.naver.maps.geometry.LatLng
+import com.sb.todaytravel.R
 import com.sb.todaytravel.data.repositories.AppDatabase
 import com.sb.todaytravel.data.repositories.AppDataStore
 import com.sb.todaytravel.data.repositories.entity.TravelHistory
 import com.sb.todaytravel.data.repositories.entity.TravelLocation
+import com.sb.todaytravel.feature.theme.TodayTravelTeal
 import com.sb.todaytravel.feature.travel_manage.TravelWorker
 import com.sb.todaytravel.feature.travel_history.TravelHistoryWithLocations
+import com.sb.todaytravel.feature.travel_manage.TRAVEL_DESTINATION
+import com.sb.todaytravel.feature.travel_manage.TRAVEL_START_NOTIFICATION_CHANNEL
+import com.sb.todaytravel.feature.travel_manage.TRAVEL_START_NOTIFICATION_NAME
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,6 +69,10 @@ class MainViewModel @Inject constructor(
     private val _lastTravelHistoryIndex = MutableStateFlow(-1)
     val lastTravelHistoryIndex: StateFlow<Int>
         get() = _lastTravelHistoryIndex.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean>
+        get() = _isLoading.asStateFlow()
 
     private var lastLocationLatitude = 0F
     private var lastLocationLongitude = 0F
@@ -143,8 +162,9 @@ class MainViewModel @Inject constructor(
         // DB에 History 저장
         val currentTime = System.currentTimeMillis()
         val newTravelHistory = TravelHistory(travelStartTime = currentTime)
+        _isLoading.value = true
 
-        val inputData = workDataOf(Pair(TravelWorker.TRAVEL_DESTINATION, arrayOf(destination.value.latitude, destination.value.longitude)))
+        val inputData = workDataOf(Pair(TRAVEL_DESTINATION, arrayOf(destination.value.latitude, destination.value.longitude)))
 
         // Timer Worker 시작
         val workRequest = OneTimeWorkRequestBuilder<TravelWorker>()
@@ -153,10 +173,13 @@ class MainViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                workManager.enqueue(workRequest)
                 appDatabase.getTravelHistoryDao().insertTravelHistory(newTravelHistory)
                 appDataStore.setCurrentTravelWorkerId(workRequest.id.toString())
-                workManager.enqueue(workRequest)
                 appDataStore.setDestinationLatLng(candidateDestination)
+                createNotification()
+                delay(1000L)
+                _isLoading.value = false
             } catch(e: Exception) {
                 e.printStackTrace()
             }
@@ -179,9 +202,49 @@ class MainViewModel @Inject constructor(
                 )
                 appDatabase.getTravelLocationDao().insertTravelLocation(lastTravelLocation)
             }
+            cancelNotification()
         } catch(e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun createNotification() {
+        val notificationManager = NotificationManagerCompat.from(application)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val channel = NotificationChannel(
+                TRAVEL_START_NOTIFICATION_CHANNEL,
+                TRAVEL_START_NOTIFICATION_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            )
+                .apply {
+                    enableLights(true)
+                    lightColor = TodayTravelTeal.toArgb()
+                    description = "여행중이에요."
+                }
+
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val titleNotification = "TodayTravel!"
+        val subtitleNotification = "여행중이에요."
+        val notification = NotificationCompat
+            .Builder(application, TRAVEL_START_NOTIFICATION_CHANNEL)
+            .setSmallIcon(R.drawable.baseline_flag_24)
+            .setContentTitle(titleNotification)
+            .setContentText(subtitleNotification)
+            .setDefaults(Notification.DEFAULT_ALL)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        if (ActivityCompat.checkSelfPermission(application, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            notificationManager.notify(2, notification.build())
+        }
+    }
+
+    private fun cancelNotification() {
+        val notificationManager = NotificationManagerCompat.from(application)
+        notificationManager.cancel(2)
     }
 
     // 거리 차이(m)를 좌표 차이로 변환
