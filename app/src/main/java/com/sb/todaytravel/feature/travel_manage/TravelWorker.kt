@@ -19,9 +19,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -44,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
@@ -65,7 +68,6 @@ class TravelWorker @AssistedInject constructor(
     private lateinit var coroutineScope: CoroutineScope
 
     override suspend fun doWork(): Result {
-        println("워크매니저 시작")
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(appContext)
         coroutineScope = CoroutineScope(Dispatchers.IO)
 
@@ -78,7 +80,7 @@ class TravelWorker @AssistedInject constructor(
             }
         }
 
-        if (ActivityCompat.checkSelfPermission(appContext, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             val locationRequest = LocationRequest
                 .Builder(60*1000L)
                 .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
@@ -103,21 +105,29 @@ class TravelWorker @AssistedInject constructor(
         }
 
         val destination = inputData.getDoubleArray(TRAVEL_DESTINATION)
-        val latestTravelHistory: TravelHistory
 
         delay(100L)
 
+        val travelHistory = TravelHistory(
+            travelStartTime = System.currentTimeMillis()
+        )
+        var latestHistoryIndex = inputData.getInt(TRAVEL_INDEX, -1)
+        val travelLocation = TravelLocation(
+            index = latestHistoryIndex,
+            arrivalTime = System.currentTimeMillis(),
+            latitude = latitude,
+            longitude = longitude
+        )
+
         try {
-            latestTravelHistory = AppDatabase.getInstance(appContext).getTravelHistoryDao().selectLatestTravelHistory()
-
-            val newTravelLocation = TravelLocation(
-                index = latestTravelHistory.index,
-                arrivalTime = System.currentTimeMillis(),
-                latitude = latitude,
-                longitude = longitude
-            )
-
-            AppDatabase.getInstance(appContext).getTravelLocationDao().insertTravelLocation(newTravelLocation)
+            if (latestHistoryIndex == -1) {
+                latestHistoryIndex = withContext(Dispatchers.IO) {
+                    AppDatabase.getInstance(appContext).getTravelHistoryDao().insertTravelHistoryWithLocation(travelHistory, travelLocation)
+                    AppDatabase.getInstance(appContext).getTravelHistoryDao().selectLatestTravelHistory().index
+                }
+            } else {
+                AppDatabase.getInstance(appContext).getTravelLocationDao().insertTravelLocation(travelLocation)
+            }
             coroutineScopeA.cancel()
             coroutineScopeB.cancel()
         } catch(e: Exception) {
@@ -128,14 +138,14 @@ class TravelWorker @AssistedInject constructor(
         }
 
         if (abs((destination?.get(0) ?: INIT_LATITUDE) - latitude) < 0.0005 && abs((destination?.get(1) ?: INIT_LONGITUDE) - longitude) < 0.0005) {
-            sendNotification(1, latestTravelHistory.travelStartTime)
+            sendNotification(1, travelHistory.travelStartTime)
             appDataStore.setCurrentTravelWorkerId("")
             AppDatabase
                 .getInstance(appContext)
                 .getTravelLocationDao()
                 .insertTravelLocation(
                     TravelLocation(
-                        index = latestTravelHistory.index,
+                        index = latestHistoryIndex,
                         arrivalTime = System.currentTimeMillis(),
                         latitude = destination?.get(0)?.toFloat() ?: INIT_LATITUDE.toFloat(),
                         longitude = destination?.get(1)?.toFloat() ?: INIT_LONGITUDE.toFloat(),
@@ -148,6 +158,7 @@ class TravelWorker @AssistedInject constructor(
 
         val continuousTravelWorkRequest = OneTimeWorkRequestBuilder<TravelWorker>()
             .setInitialDelay(1, TimeUnit.MINUTES)
+            .setInputData(workDataOf(Pair(TRAVEL_INDEX, latestHistoryIndex)))
             .build()
 
         WorkManager.getInstance(appContext)
@@ -199,5 +210,9 @@ class TravelWorker @AssistedInject constructor(
                     }
             notificationManager.createNotificationChannel(channel)
         }
+    }
+
+    companion object {
+        const val TRAVEL_INDEX = "travel_index"
     }
 }

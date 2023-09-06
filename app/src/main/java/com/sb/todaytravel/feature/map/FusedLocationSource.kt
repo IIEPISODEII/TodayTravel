@@ -11,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.google.android.gms.common.api.GoogleApi
 import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest

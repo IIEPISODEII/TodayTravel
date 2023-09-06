@@ -54,7 +54,6 @@ import com.sb.todaytravel.feature.theme.TodayTravelBlue
 import com.sb.todaytravel.feature.theme.TodayTravelGreen
 import com.sb.todaytravel.feature.theme.TodayTravelTeal
 import com.sb.todaytravel.feature.travel_history.HistoryScreen
-import com.sb.todaytravel.feature.travel_history.HistoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -62,10 +61,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(
     isNightMode: Boolean = true,
-    mainViewModel: MainViewModel = hiltViewModel(),
-    historyViewModel: HistoryViewModel = hiltViewModel()
+    mainViewModel: MainViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val navController = rememberNavController()
     val seoul = LatLng(INIT_LATITUDE, INIT_LONGITUDE)
     val coroutineScope = rememberCoroutineScope()

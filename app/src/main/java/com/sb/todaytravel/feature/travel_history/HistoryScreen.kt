@@ -258,7 +258,7 @@ fun TravelHistoryItem(
     val ripple = rememberRipple(
         bounded = true,
         radius = 300.dp,
-        color = Color(0xFFEEEEEE)
+        color = Color(0xFF7F7F7F)
     )
 
     Box(
@@ -273,6 +273,7 @@ fun TravelHistoryItem(
                 .wrapContentHeight(align = Alignment.CenterVertically)
                 .padding(horizontal = 24.dp, vertical = 8.dp)
                 .background(Color(0xFFEEEEEE), RoundedCornerShape(20))
+                .clip(RoundedCornerShape(20))
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = ripple,

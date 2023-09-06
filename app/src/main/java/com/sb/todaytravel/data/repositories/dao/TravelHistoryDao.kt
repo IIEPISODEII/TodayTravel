@@ -5,13 +5,15 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.sb.todaytravel.data.repositories.entity.TravelHistory
+import com.sb.todaytravel.data.repositories.entity.TravelLocation
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TravelHistoryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun insertTravelHistory(travelHistory: TravelHistory)
+    fun insertTravelHistory(travelHistory: TravelHistory): Long
 
     @Query("SELECT * FROM history")
     fun selectAllTravelHistory(): Flow<List<TravelHistory>>
@@ -26,5 +28,15 @@ interface TravelHistoryDao {
     fun deleteTravelHistory(deleteIndex: Int)
 
     @Query("DELETE FROM history")
-    fun deleteAllTravelHistories()
+    suspend fun deleteAllTravelHistories()
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insertTravelLocation(travelLocation: TravelLocation)
+
+    @Transaction
+    suspend fun insertTravelHistoryWithLocation(travelHistory: TravelHistory, travelLocation: TravelLocation) {
+        val travelId = insertTravelHistory(travelHistory).toInt()
+        val travelLocationWithId = travelLocation.copy(index = travelId)
+        insertTravelLocation(travelLocationWithId)
+    }
 }

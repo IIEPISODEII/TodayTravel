@@ -174,7 +174,6 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 workManager.enqueue(workRequest)
-                appDatabase.getTravelHistoryDao().insertTravelHistory(newTravelHistory)
                 appDataStore.setCurrentTravelWorkerId(workRequest.id.toString())
                 appDataStore.setDestinationLatLng(candidateDestination)
                 createNotification()
