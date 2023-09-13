@@ -41,8 +41,8 @@ class MainActivity : ComponentActivity(), OnRequestPermissionsResultCallback {
                 if (location == null) return@addOnSuccessListener
 
                 lifecycleScope.launch(Dispatchers.IO) {
-                    appDataStore.setCurrentLocationLatitude(location.latitude.toFloat())
-                    appDataStore.setCurrentLocationLongitude(location.longitude.toFloat())
+                    appDataStore.setCurrentLocationLatitude(location.latitude)
+                    appDataStore.setCurrentLocationLongitude(location.longitude)
                 }
             }
         }
@@ -60,26 +60,34 @@ class MainActivity : ComponentActivity(), OnRequestPermissionsResultCallback {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         when (requestCode) {
             REQUEST_LOCATION -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                    != PackageManager.PERMISSION_GRANTED) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), REQUEST_BACKGROUND_LOCATION)
-                }
-                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                    if (location == null) return@addOnSuccessListener
 
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        appDataStore.setCurrentLocationLatitude(location.latitude.toFloat())
-                        appDataStore.setCurrentLocationLongitude(location.longitude.toFloat())
+                    fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                        if (location == null) return@addOnSuccessListener
+
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            appDataStore.setCurrentLocationLatitude(location.latitude)
+                            appDataStore.setCurrentLocationLongitude(location.longitude)
+                        }
                     }
                 }
             }
             REQUEST_BACKGROUND_LOCATION -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATION)
+
+                    fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                        if (location == null) return@addOnSuccessListener
+
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            appDataStore.setCurrentLocationLatitude(location.latitude)
+                            appDataStore.setCurrentLocationLongitude(location.longitude)
+                        }
+                    }
                     return
                 }
             }

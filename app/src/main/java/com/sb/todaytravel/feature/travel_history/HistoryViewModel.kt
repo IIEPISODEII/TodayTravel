@@ -54,9 +54,16 @@ class HistoryViewModel @Inject constructor(
                     )
                     .onEach { travelHistory ->
                         val travelLocation = withContext(Dispatchers.IO) {
-                            appDatabase.getTravelLocationDao().selectTravelLocations(travelHistory.index)
+                            appDatabase.getTravelLocationDao().selectTravelLocations(travelHistory.travelIndex)
                         }
-                        list.add(TravelHistoryWithLocations(travelHistory.index, travelHistory.travelStartTime, travelLocation))
+                        list.add(
+                            TravelHistoryWithLocations(
+                                travelHistoryIndex = travelHistory.travelIndex,
+                                travelState = travelHistory.travelState,
+                                travelStartTime = travelHistory.travelStartTime,
+                                travelLocations = travelLocation
+                            )
+                        )
                     }
                 _allTravelHistories.value = list
                 _isLoading.value = false
@@ -64,7 +71,7 @@ class HistoryViewModel @Inject constructor(
                 .launchIn(viewModelScope)
     }
 
-    fun deleteTravelHistory(travelHistoryIndex: Int) {
+    fun deleteTravelHistory(travelHistoryIndex: Long) {
         _isLoading.value = true
         viewModelScope.launch(Dispatchers.IO) {
             appDatabase.getTravelHistoryDao().deleteTravelHistory(travelHistoryIndex)

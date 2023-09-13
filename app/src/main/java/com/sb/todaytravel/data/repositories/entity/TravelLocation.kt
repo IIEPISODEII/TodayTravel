@@ -5,17 +5,17 @@ import androidx.room.ForeignKey
 
 @Entity(
     tableName = "travel_location",
-    primaryKeys = ["index", "arrivalTime"],
+    primaryKeys = ["travelIndex", "arrivalTime"],
     foreignKeys = [ForeignKey(
         entity = TravelHistory::class,
-        parentColumns = ["index"],
-        childColumns = ["index"],
+        parentColumns = ["travelIndex"],
+        childColumns = ["travelIndex"],
         onDelete = ForeignKey.CASCADE
     )]
 )
 data class TravelLocation(
-    var index: Int = 0,
+    var travelIndex: Long = 0L,
     var arrivalTime: Long = 0L,
-    var latitude: Float = 0F,
-    var longitude: Float = 0F
+    var latitude: Double = 0.0,
+    var longitude: Double = 0.0
 )

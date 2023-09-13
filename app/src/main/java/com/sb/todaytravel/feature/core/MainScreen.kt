@@ -1,5 +1,6 @@
 package com.sb.todaytravel.feature.core
 
+import android.widget.Toast
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraAnimation
@@ -46,14 +48,17 @@ import com.naver.maps.map.compose.MarkerState
 import com.naver.maps.map.compose.NaverMap
 import com.naver.maps.map.compose.PathOverlay
 import com.naver.maps.map.compose.rememberCameraPositionState
+import com.naver.maps.map.overlay.OverlayImage
 import com.sb.todaytravel.R
 import com.sb.todaytravel.feature.app_setting.AppSettingScreen
 import com.sb.todaytravel.feature.map.MapScreen
 import com.sb.todaytravel.feature.map.rememberFusedLocationSource
 import com.sb.todaytravel.feature.theme.TodayTravelBlue
 import com.sb.todaytravel.feature.theme.TodayTravelGreen
+import com.sb.todaytravel.feature.theme.TodayTravelOrange
 import com.sb.todaytravel.feature.theme.TodayTravelTeal
 import com.sb.todaytravel.feature.travel_history.HistoryScreen
+import com.sb.todaytravel.feature.travel_history.TravelHistoryWithLocations
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -77,8 +82,8 @@ fun MainScreen(
     }
 
     LaunchedEffect(key1 = Unit) {
-        delay(1500L)
-        cameraPosition.position = CameraPosition(currentLocation, 11.0)
+        delay(2500L)
+        cameraPosition.animate(CameraUpdate.toCameraPosition(CameraPosition(currentLocation, 11.0)), CameraAnimation.Easing, 1000)
     }
 
     Box(
@@ -187,20 +192,31 @@ fun MainScreen(
                 isFlat = true
             )
 
-            markedTravelLocations.forEach { (latitude, longitude) ->
-                CircleOverlay(
-                    center = LatLng(latitude.toDouble(), longitude.toDouble()),
-                    color = Color.Transparent,
-                    radius = 12.toDouble(),
-                    outlineColor = TodayTravelGreen,
-                    outlineWidth = 2.dp
-                )
-            }
-            if (markedTravelLocations.size >= 2) {
+            if (markedTravelLocations.size >= 2 && navController.currentBackStackEntry?.destination?.route == Screen.HistoryScreen.route) {
                 PathOverlay(
-                    coords = markedTravelLocations.map { LatLng(it.latitude.toDouble(), it.longitude.toDouble()) },
+                    coords = markedTravelLocations.map { LatLng(it.latitude, it.longitude) },
                     width = 4.dp,
-                    color = TodayTravelGreen
+                    color = TodayTravelGreen,
+                    outlineWidth = 1.dp,
+                    outlineColor = Color.LightGray
+                )
+                Marker(
+                    width = 28.dp,
+                    height = 28.dp,
+                    state = MarkerState(
+                        position = LatLng(markedTravelLocations.first().latitude, markedTravelLocations.first().longitude)
+                    ),
+                    icon = OverlayImage.fromResource(R.drawable.baseline_play_circle_outline_24),
+                    iconTintColor = TodayTravelOrange
+                )
+                Marker(
+                    width = 28.dp,
+                    height = 28.dp,
+                    state = MarkerState(
+                        position = LatLng(markedTravelLocations.last().latitude, markedTravelLocations.last().longitude)
+                    ),
+                    icon = OverlayImage.fromResource(R.drawable.outline_location_on_24),
+                    iconTintColor = TodayTravelBlue
                 )
             }
         }
@@ -239,6 +255,7 @@ fun MainScreen(
                 startDestination = Screen.MapScreen.route
             ) {
                 composable(Screen.MapScreen.route) {
+                    mainViewModel.updateMarkedTravelHistory(null)
                     fullScreenMapEnabled = true
                     MapScreen()
                 }
@@ -251,6 +268,7 @@ fun MainScreen(
                     HistoryScreen(onHistoryItemClick = { mainViewModel.updateMarkedTravelHistory(it) })
                 }
                 composable(Screen.AppSettingScreen.route) {
+                    mainViewModel.updateMarkedTravelHistory(null)
                     fullScreenMapEnabled = true
                     AppSettingScreen()
                 }
@@ -258,28 +276,31 @@ fun MainScreen(
             BottomNavigationBar(navController = navController)
         }
 
-        FloatingActionButton(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 84.dp),
-            backgroundColor = TodayTravelTeal,
-            onClick = {
-                if (!isTraveling) {
-                    mainViewModel.setRandomDestination()
-                    isDestinationMarkShown = true
-                    dialogEvent = DialogEvent.SET_DESTINATION
-                } else {
-                    dialogEvent = DialogEvent.CANCEL_TRAVEL
-                }
-            }
-        ) {
-            Icon(
+        if (navController.currentBackStackEntryAsState().value?.destination?.route in arrayOf(Screen.MapScreen.route, Screen.HistoryScreen.route)) {
+            FloatingActionButton(
                 modifier = Modifier
-                    .size(48.dp)
-                    .padding(12.dp),
-                imageVector = if (isTraveling) Icons.Default.Clear else Icons.Default.Add,
-                contentDescription = ""
-            )
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 24.dp, bottom = 84.dp),
+                backgroundColor = TodayTravelTeal,
+                onClick = {
+                    if (!isTraveling) {
+                        mainViewModel.setRandomDestination()
+                        isDestinationMarkShown = true
+                        dialogEvent = DialogEvent.SET_DESTINATION
+                    } else {
+                        isDestinationMarkShown = false
+                        dialogEvent = DialogEvent.CANCEL_TRAVEL
+                    }
+                }
+            ) {
+                Icon(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .padding(12.dp),
+                    imageVector = if (isTraveling) Icons.Default.Clear else Icons.Default.Add,
+                    contentDescription = ""
+                )
+            }
         }
     }
 }

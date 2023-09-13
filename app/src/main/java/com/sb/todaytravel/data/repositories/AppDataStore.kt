@@ -2,6 +2,7 @@ package com.sb.todaytravel.data.repositories
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -22,8 +23,8 @@ class AppDataStore @Inject constructor(
     private val TRAVEL_RADIUS_PROGRESS = intPreferencesKey("travel_radius_progress")
     private val ORDER_TYPE = intPreferencesKey("order_type")
     private val CURRENT_TRAVEL_WORKER_ID = stringPreferencesKey("current_travel_worker_id")
-    private val CURRENT_LATITUDE = floatPreferencesKey("current_latitude")
-    private val CURRENT_LONGITUDE = floatPreferencesKey("current_longitude")
+    private val CURRENT_LATITUDE = doublePreferencesKey("current_latitude")
+    private val CURRENT_LONGITUDE = doublePreferencesKey("current_longitude")
     private val MAP_ROTATION = booleanPreferencesKey("map_rotation")
     private val DESTINATION_LATLNG = stringPreferencesKey("destination_latlng")
     private val STARTING_AT_CURRENT_LOCATION = booleanPreferencesKey("starting_at_current_location")
@@ -61,28 +62,27 @@ class AppDataStore @Inject constructor(
 
     fun getCurrentTravelWorkerId(): Flow<String> = dataStore.data.map { pref -> pref[CURRENT_TRAVEL_WORKER_ID] ?: "" }
 
-    suspend fun setCurrentLocationLatitude(latitude: Float) {
+    suspend fun setCurrentLocationLatitude(latitude: Double) {
         dataStore.edit { pref ->
             pref[CURRENT_LATITUDE] = latitude
         }
     }
 
-    fun getCurrentLocationLatitude(): Flow<Float> {
-
+    fun getCurrentLocationLatitude(): Flow<Double> {
         return dataStore.data.map { pref ->
-            pref[CURRENT_LATITUDE] ?: 0F
+            pref[CURRENT_LATITUDE] ?: 0.0
         }.distinctUntilChanged()
     }
 
-    suspend fun setCurrentLocationLongitude(longitude: Float) {
+    suspend fun setCurrentLocationLongitude(longitude: Double) {
         dataStore.edit { pref ->
             pref[CURRENT_LONGITUDE] = longitude
         }
     }
 
-    fun getCurrentLocationLongitude(): Flow<Float> {
+    fun getCurrentLocationLongitude(): Flow<Double> {
         return dataStore.data.map { pref ->
-            pref[CURRENT_LONGITUDE] ?: 0F
+            pref[CURRENT_LONGITUDE] ?: 0.0
         }.distinctUntilChanged()
     }
 

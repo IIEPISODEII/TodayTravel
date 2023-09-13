@@ -12,8 +12,8 @@ interface TravelLocationDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertTravelLocation(travelLocation: TravelLocation)
 
-    @Query("SELECT * FROM travel_location WHERE `index` = :travelHistoryIndex")
-    fun selectTravelLocations(travelHistoryIndex: Int): List<TravelLocation>
+    @Query("SELECT * FROM travel_location WHERE travelIndex = :travelHistoryIndex")
+    fun selectTravelLocations(travelHistoryIndex: Long): List<TravelLocation>
 
     @Delete
     fun deleteTravelLocations(travelLocation: TravelLocation)

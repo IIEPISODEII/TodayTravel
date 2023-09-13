@@ -66,16 +66,16 @@ class MainViewModel @Inject constructor(
     val isTraveling: StateFlow<Boolean>
         get() = _isTraveling.asStateFlow()
 
-    private val _lastTravelHistoryIndex = MutableStateFlow(-1)
-    val lastTravelHistoryIndex: StateFlow<Int>
+    private val _lastTravelHistoryIndex = MutableStateFlow(-1L)
+    val lastTravelHistoryIndex: StateFlow<Long>
         get() = _lastTravelHistoryIndex.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean>
         get() = _isLoading.asStateFlow()
 
-    private var lastLocationLatitude = 0F
-    private var lastLocationLongitude = 0F
+    private var lastLocationLatitude = 0.0
+    private var lastLocationLongitude = 0.0
 
     private val _preventionOfMapRotation = MutableStateFlow(true)
     val preventionOfMapRotation: StateFlow<Boolean>
@@ -192,14 +192,15 @@ class MainViewModel @Inject constructor(
 
             viewModelScope.launch(Dispatchers.IO) {
                 appDataStore.setCurrentTravelWorkerId("")
-                val lastTravelIndex = appDatabase.getTravelHistoryDao().selectLatestTravelHistory().index
+                val lastTravelHistory = appDatabase.getTravelHistoryDao().selectLatestTravelHistory()
+                val updatedTravelHistory = lastTravelHistory.copy(travelState = 1)
                 val lastTravelLocation = TravelLocation(
-                    index = lastTravelIndex,
+                    travelIndex = updatedTravelHistory.travelIndex,
                     arrivalTime = System.currentTimeMillis(),
                     latitude = lastLocationLatitude,
                     longitude = lastLocationLongitude
                 )
-                appDatabase.getTravelLocationDao().insertTravelLocation(lastTravelLocation)
+                appDatabase.getTravelHistoryDao().insertTravelHistoryWithLocation(updatedTravelHistory, lastTravelLocation)
             }
             cancelNotification()
         } catch(e: Exception) {
@@ -259,7 +260,11 @@ class MainViewModel @Inject constructor(
     val markedLocations: StateFlow<List<TravelLocation>>
         get() = _markedLocations.asStateFlow()
 
-    fun updateMarkedTravelHistory(travelHistoryWithLocations: TravelHistoryWithLocations) {
+    fun updateMarkedTravelHistory(travelHistoryWithLocations: TravelHistoryWithLocations?) {
+        if (travelHistoryWithLocations == null) {
+            _markedLocations.value = emptyList()
+            return
+        }
         _markedLocations.value = travelHistoryWithLocations.travelLocations
     }
 
@@ -293,7 +298,7 @@ class MainViewModel @Inject constructor(
             }
             launch(Dispatchers.IO) {
                 appDatabase.getTravelHistoryDao().selectLatestTravelHistoryAsFlow().collect {
-                    _lastTravelHistoryIndex.value = it?.index ?: -1
+                    _lastTravelHistoryIndex.value = it?.travelIndex ?: -1
                 }
             }
             launch {
