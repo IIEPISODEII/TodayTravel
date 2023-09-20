@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.kakao.sdk.common.KakaoSdk
 import com.naver.maps.map.NaverMapSdk
+import com.sb.todaytravel.feature.travel_manage.FusedLocationProviderManager
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -20,6 +21,13 @@ class MainApplication : Application(), Configuration.Provider {
         )
 
         NaverMapSdk.getInstance(this).client = NaverMapSdk.NaverCloudPlatformClient(BuildConfig.NAVER_MAP_CLIENT_ID)
+        FusedLocationProviderManager.init(applicationContext)
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        FusedLocationProviderManager.unregisterLocationCallback()
+        FusedLocationProviderManager.terminate()
     }
 
     @Inject lateinit var workerFactory: HiltWorkerFactory

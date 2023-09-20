@@ -42,12 +42,20 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 @HiltWorker
 class TravelWorker @AssistedInject constructor(
@@ -63,118 +71,136 @@ class TravelWorker @AssistedInject constructor(
     private val coroutineScopeA = CoroutineScope(Dispatchers.IO)
     private val coroutineScopeB = CoroutineScope(Dispatchers.IO)
 
-    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
     private lateinit var coroutineScope: CoroutineScope
 
     override suspend fun doWork(): Result {
+        try {
+            coroutineScope = CoroutineScope(Dispatchers.IO)
 
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(appContext)
-        coroutineScope = CoroutineScope(Dispatchers.IO)
-
-        locationCallback = object: LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                coroutineScope.launch {
-                    appDataStore.setCurrentLocationLatitude(locationResult.locations.last().latitude)
-                    appDataStore.setCurrentLocationLongitude(locationResult.locations.last().longitude)
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(locationResult: LocationResult) {
+                    coroutineScope.launch {
+                        appDataStore.setCurrentLocationLatitude(locationResult.locations.last().latitude)
+                        appDataStore.setCurrentLocationLongitude(locationResult.locations.last().longitude)
+                    }
                 }
             }
-        }
 
-        if (ActivityCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             val locationRequest = LocationRequest
-                .Builder(60*1000L)
+                .Builder(60 * 1000L)
                 .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                 .build()
 
-            fusedLocationProviderClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper()
+            FusedLocationProviderManager.registerLocationCallback(
+                context = applicationContext,
+                locationRequest = locationRequest,
+                locationCallback = locationCallback
             )
-        }
 
-        coroutineScopeA.launch {
-            appDataStore.getCurrentLocationLatitude().collect {
-                latitude = it
-            }
-        }
-        coroutineScopeB.launch {
-            appDataStore.getCurrentLocationLongitude().collect {
-                longitude = it
-            }
-        }
-
-        val destination = inputData.getDoubleArray(TRAVEL_DESTINATION)
-        val destinationLatitude = destination?.get(0) ?: INIT_LATITUDE
-        val destinationLongitude = destination?.get(1) ?: INIT_LONGITUDE
-        val isTravelEndAtDestination = abs(destinationLatitude - latitude) < 0.0005 && abs(destinationLongitude - longitude) < 0.0005
-
-        delay(200L)
-        coroutineScopeA.cancel()
-        coroutineScopeB.cancel()
-
-        var latestHistoryIndex = inputData.getLong(TRAVEL_INDEX, -1)
-
-        try {
-            val newTravelLocation = TravelLocation(
-                travelIndex = latestHistoryIndex,
-                arrivalTime = System.currentTimeMillis(),
-                latitude = latitude,
-                longitude = longitude
-            )
-            if (latestHistoryIndex == -1L) { // TravelHistory 신규 생성 후 TravelHistory와 TravelLocation을 같이 DB에 삽입
-                val newTravelHistory = TravelHistory(
-                    travelStartTime = System.currentTimeMillis(),
-                    travelState = 2
-                )
-
-                latestHistoryIndex = withContext(Dispatchers.IO) {
-                    appDatabase.getTravelHistoryDao().insertTravelHistoryWithLocation(newTravelHistory, newTravelLocation)
-                    appDatabase.getTravelHistoryDao().selectLatestTravelHistory().travelIndex
+            coroutineScopeA.launch {
+                appDataStore.getCurrentLocationLatitude().collect {
+                    latitude = it
                 }
-            } else { // 신규 TravelLocation만 DB에 삽입
-                appDatabase.getTravelLocationDao().insertTravelLocation(newTravelLocation)
             }
-        } catch(e: Exception) {
-            e.printStackTrace()
-            return Result.failure()
-        }
+            coroutineScopeB.launch {
+                appDataStore.getCurrentLocationLongitude().collect {
+                    longitude = it
+                }
+            }
 
-        if (isStopped) { return Result.success() }
+            val destination = inputData.getDoubleArray(TRAVEL_DESTINATION)
+            val destinationLatitude = destination?.get(0) ?: INIT_LATITUDE
+            val destinationLongitude = destination?.get(1) ?: INIT_LONGITUDE
+            val isTravelEndAtDestination = sqrt(
+                abs(destinationLatitude - latitude).pow(2) + abs(destinationLongitude - longitude).pow(2)) < 0.0005
 
-        if (isTravelEndAtDestination) {
-            sendNotification(1, System.currentTimeMillis())
-            appDataStore.setCurrentTravelWorkerId("")
-            val latestTravelHistory = withContext(Dispatchers.IO) {
+            delay(1000L)
+
+            var latestHistoryIndex = inputData.getLong(TRAVEL_INDEX, -1)
+
+            try {
+                val newTravelLocation = TravelLocation(
+                    travelIndex = latestHistoryIndex,
+                    arrivalTime = System.currentTimeMillis(),
+                    latitude = latitude,
+                    longitude = longitude
+                )
+                if (latestHistoryIndex == -1L) { // TravelHistory 신규 생성 후 TravelHistory와 TravelLocation을 같이 DB에 삽입
+                    val newTravelHistory = TravelHistory(
+                        travelStartTime = System.currentTimeMillis(),
+                        travelState = 2
+                    )
+
+                    latestHistoryIndex = withContext(Dispatchers.IO) {
+                        appDatabase.getTravelHistoryDao()
+                            .insertTravelHistoryWithLocation(newTravelHistory, newTravelLocation)
+                        appDatabase.getTravelHistoryDao().selectLatestTravelHistory().travelIndex
+                    }
+                } else { // 신규 TravelLocation만 DB에 삽입
+                    appDatabase.getTravelLocationDao().insertTravelLocation(newTravelLocation)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                FusedLocationProviderManager.unregisterLocationCallback()
+                return Result.failure()
+            }
+
+            if (isStopped) {
+                FusedLocationProviderManager.unregisterLocationCallback()
+                return Result.success()
+            }
+
+            if (isTravelEndAtDestination) {
+                sendNotification(1, System.currentTimeMillis())
+                appDataStore.setCurrentTravelWorkerId("")
+                val latestTravelHistory = withContext(Dispatchers.IO) {
+                    appDatabase
+                        .getTravelHistoryDao()
+                        .selectLatestTravelHistory()
+                }
                 appDatabase
                     .getTravelHistoryDao()
-                    .selectLatestTravelHistory()
+                    .insertTravelHistoryWithLocation(
+                        travelHistory = latestTravelHistory.copy(travelState = 0),
+                        travelLocation = TravelLocation(
+                            travelIndex = latestHistoryIndex,
+                            arrivalTime = System.currentTimeMillis(),
+                            latitude = destinationLatitude,
+                            longitude = destinationLongitude
+                        )
+                    )
+                FusedLocationProviderManager.unregisterLocationCallback()
+                return Result.success()
             }
-            appDatabase
-                .getTravelHistoryDao()
-                .insertTravelHistoryWithLocation(
-                    travelHistory = latestTravelHistory.copy(travelState = 0),
-                    travelLocation = TravelLocation(
-                        travelIndex = latestHistoryIndex,
-                        arrivalTime = System.currentTimeMillis(),
-                        latitude = destinationLatitude,
-                        longitude = destinationLongitude
+
+            coroutineScopeA.cancel()
+            coroutineScopeB.cancel()
+
+            delay(60000L)
+
+            val continuousTravelWorkRequest = OneTimeWorkRequestBuilder<TravelWorker>()
+                .setInputData(
+                    workDataOf(
+                        Pair(TRAVEL_INDEX, latestHistoryIndex),
+                        Pair(PRE_LOCATION_LATITUDE, latitude),
+                        Pair(PRE_LOCATION_LONGITUDE, longitude),
+                        Pair(
+                            TRAVEL_DESTINATION, arrayOf(destinationLatitude, destinationLongitude)
+                        )
                     )
                 )
+                .build()
+
+            WorkManager.getInstance(appContext)
+                .enqueue(continuousTravelWorkRequest)
+
             return Result.success()
+        } catch(e: CancellationException) {
+            e.printStackTrace()
+            FusedLocationProviderManager.unregisterLocationCallback()
+            return Result.failure()
         }
-
-        val continuousTravelWorkRequest = OneTimeWorkRequestBuilder<TravelWorker>()
-            .setInitialDelay(1, TimeUnit.MINUTES)
-            .setInputData(workDataOf(Pair(TRAVEL_INDEX, latestHistoryIndex), Pair(PRE_LOCATION_LATITUDE, latitude), Pair(PRE_LOCATION_LONGITUDE, longitude), Pair(
-                TRAVEL_DESTINATION, arrayOf(destinationLatitude, destinationLongitude))))
-            .build()
-
-        WorkManager.getInstance(appContext)
-            .enqueue(continuousTravelWorkRequest)
-
-        return Result.success()
     }
 
     private fun sendNotification(id: Int, travelStartTime: Long) {

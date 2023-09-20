@@ -15,7 +15,6 @@ fun haversine(start: LatLng, destination: LatLng): Double {
 
     val a = sin(dLat / 2).pow(2.toDouble()) + sin(dLon / 2).pow(2.toDouble()) * cos(originLat) * cos(destinationLat)
     val c = 2 * asin(sqrt(a))
-    println("EARTH_RADIUS c : $c >> ${EARTH_RADIUS*c}")
     return EARTH_RADIUS * c
 }
 

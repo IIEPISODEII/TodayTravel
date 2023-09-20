@@ -16,6 +16,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationResult
 import com.naver.maps.geometry.LatLng
 import com.sb.todaytravel.R
 import com.sb.todaytravel.data.repositories.AppDatabase
@@ -25,17 +27,23 @@ import com.sb.todaytravel.data.repositories.entity.TravelLocation
 import com.sb.todaytravel.feature.theme.TodayTravelTeal
 import com.sb.todaytravel.feature.travel_manage.TravelWorker
 import com.sb.todaytravel.feature.travel_history.TravelHistoryWithLocations
+import com.sb.todaytravel.feature.travel_manage.FusedLocationProviderManager
 import com.sb.todaytravel.feature.travel_manage.TRAVEL_DESTINATION
 import com.sb.todaytravel.feature.travel_manage.TRAVEL_START_NOTIFICATION_CHANNEL
 import com.sb.todaytravel.feature.travel_manage.TRAVEL_START_NOTIFICATION_NAME
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.sqrt
 
@@ -47,7 +55,6 @@ class MainViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
 
     private val workManager = WorkManager.getInstance(application.applicationContext)
-    private var currentTravelWorkerId = ""
 
     private val _currentLocation = MutableStateFlow((LatLng(INIT_LATITUDE, INIT_LONGITUDE)))
     val currentLocation: StateFlow<LatLng>
@@ -156,6 +163,22 @@ class MainViewModel @Inject constructor(
 
     fun setDestination(latLng: LatLng) {
         candidateDestination = latLng
+    }
+
+    private val locationCallback = object: LocationCallback() {
+        val coroutineScope = CoroutineScope(Dispatchers.IO)
+
+        override fun onLocationResult(locationResult: LocationResult) {
+            println("현시각 ${SimpleDateFormat("yy.MM.dd. hh:mm", Locale.KOREA).format(Date(System.currentTimeMillis()))}: >> LocationResult")
+            locationResult.locations.forEach {
+                println("Latitude: ${it.latitude}, Longitude: ${it.longitude}")
+            }
+            coroutineScope.launch {
+                appDataStore.setCurrentLocationLatitude(locationResult.locations.last().latitude)
+                appDataStore.setCurrentLocationLongitude(locationResult.locations.last().longitude)
+                println("${SimpleDateFormat("yy.MM.dd. hh:mm:ss", Locale.KOREA).format(Date(System.currentTimeMillis()))} - 새 장소 확인: ${locationResult.locations.last()}")
+            }
+        }
     }
 
     fun startTravel() {
@@ -283,7 +306,6 @@ class MainViewModel @Inject constructor(
             launch {
                 appDataStore.getCurrentTravelWorkerId().stateIn(viewModelScope).collect {
                     _isTraveling.value = it != ""
-                    currentTravelWorkerId = it
                 }
             }
             launch {

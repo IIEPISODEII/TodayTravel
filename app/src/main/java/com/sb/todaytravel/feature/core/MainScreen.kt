@@ -207,7 +207,8 @@ fun MainScreen(
                         position = LatLng(markedTravelLocations.first().latitude, markedTravelLocations.first().longitude)
                     ),
                     icon = OverlayImage.fromResource(R.drawable.baseline_play_circle_outline_24),
-                    iconTintColor = TodayTravelOrange
+                    iconTintColor = TodayTravelOrange,
+                    captionText = "여행 출발"
                 )
                 Marker(
                     width = 28.dp,
@@ -216,7 +217,8 @@ fun MainScreen(
                         position = LatLng(markedTravelLocations.last().latitude, markedTravelLocations.last().longitude)
                     ),
                     icon = OverlayImage.fromResource(R.drawable.outline_location_on_24),
-                    iconTintColor = TodayTravelBlue
+                    iconTintColor = TodayTravelBlue,
+                    captionText = "여행 도착"
                 )
             }
         }
