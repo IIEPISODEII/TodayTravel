@@ -15,11 +15,6 @@ class MainApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        KakaoSdk.init(
-            context = this,
-            appKey = BuildConfig.KAKAO_NATIVE_APP_KEY
-        )
-
         NaverMapSdk.getInstance(this).client = NaverMapSdk.NaverCloudPlatformClient(BuildConfig.NAVER_MAP_CLIENT_ID)
         FusedLocationProviderManager.init(applicationContext)
     }
