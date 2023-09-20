@@ -1,4 +1,4 @@
-![제목 없는 동영상 - Clipchamp로 제작 (1)](https://github.com/IIEPISODEII/TodayTravel/assets/60639734/c0442a4b-8302-4cdd-9295-5f6a8c285825)# TodayTravel
+# TodayTravel
 ㅁ Description :
   - 네이버맵 API 사용해 만들어본 간단한 토이프로젝트
   - 지도를 클릭하면 마커와 함께 해당 위치 정보 표시(경/위도, 지번주소, 도로명주소 등)
