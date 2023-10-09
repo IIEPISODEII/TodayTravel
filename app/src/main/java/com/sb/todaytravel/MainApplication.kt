@@ -3,7 +3,6 @@ package com.sb.todaytravel
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import com.kakao.sdk.common.KakaoSdk
 import com.naver.maps.map.NaverMapSdk
 import com.sb.todaytravel.feature.travel_manage.FusedLocationProviderManager
 import dagger.hilt.android.HiltAndroidApp
