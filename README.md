@@ -7,7 +7,7 @@
   - 여행/지도 관련 사용자 설정 가능
 
 ## 구조
-![TodayTravel 구조](https://github.com/IIEPISODEII/TodayTravel/assets/60639734/a766b317-d067-409b-b126-9d7611d60cdd)
+![TodayTravel 구조_](https://github.com/IIEPISODEII/TodayTravel/assets/60639734/b05cf433-da65-42bd-b9a0-4a63d6a5585a)
 
 ## 사용 기술
   - Jetpack Compose
